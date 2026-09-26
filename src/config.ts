@@ -1,4 +1,5 @@
 import dotenv from 'dotenv'
+import type { ThemeMode, VideoMode } from './types.js'
 
 dotenv.config()
 
@@ -25,12 +26,18 @@ export const config = {
   targetChannelId: process.env.TARGET_CHANNEL_ID || '',
 
   // Theme for generated tweet card: 'dark' | 'light' | 'dim'
-  theme: (process.env.THEME || 'dark') as 'light' | 'dark' | 'dim',
+  theme: (process.env.THEME || 'dark') as ThemeMode,
+
+  // Handling mode when tweet contains a video:
+  // - 'video': Downloads high-res MP4 and posts as Telegram native video (playable in BroadcastChannel!)
+  // - 'card': Generates a tweet card image with video poster & play badge
+  // - 'both': Posts both the card image and the video
+  videoMode: (process.env.VIDEO_MODE || 'video') as VideoMode,
 
   // Optional HTTP/HTTPS/SOCKS proxy (e.g. "http://127.0.0.1:7890")
   proxyUrl: process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '',
 
-  // Whether to reply with the photo in admin private chat as well
+  // Whether to reply with the media in admin private chat as well
   sendToAdmin: process.env.SEND_TO_ADMIN !== 'false',
 
   // Custom hashtag appended to Telegram caption (e.g. "#Twitter")

@@ -23,6 +23,10 @@
 
 - 🚀 **无需 Twitter API Key**：采用 Twitter 官方公开外嵌 Syndication 接口 + FxTwitter 双引擎降级机制，完全免费、无需申请开发者账号、无月度调用限制。
 - 🎨 **极速无头渲染（无浏览器依赖）**：基于 Vercel 的 [Satori](https://github.com/vercel/satori) 与 Rust 的 [Resvg](https://github.com/RazrFalcon/resvg)，告别消耗几百兆内存的 Chromium / Puppeteer，渲染单张图仅需 30~50 毫秒，运行时内存不到 50MB。
+- 🎬 **智能视频推文支持（独家优势）**：
+  - **原生视频模式（默认推荐 `VIDEO_MODE=video`）**：自动提取推特最高清晰度 MP4 视频并发至频道。因为 **`BroadcastChannel` 博客引擎内置支持 Telegram 视频**，你的博客页面会直接生成可播放的 HTML5 `<video>` 播放器，国内访客在网页上即可直接点播！
+  - **静态卡片模式（`VIDEO_MODE=card`）**：自动抓取视频高清封面，并在卡片中央渲染精致的半透明播放按钮（`▶`）与时长角标（如 `0:17`）。
+  - **自动容错降级**：若视频超过 Telegram 50MB 限制或下载失败，自动平滑降级为发送封面卡片。
 - 🀄 **中文字体与 Emoji 完美适配**：自动下载并缓存 `Noto Sans SC`（思源黑体），无论是中文、英文、表情符号还是引用推文都能高质量渲染。
 - 🛡️ **严格安全鉴权**：支持配置 `ADMIN_USER_IDS` 管理员白名单，防止机器人被他人滥用。
 - 🌐 **代理支持**：原生支持 HTTP / SOCKS5 代理，国内服务器也可顺畅连接 Telegram 与 Twitter。

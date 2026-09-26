@@ -6,20 +6,70 @@ import { getTweetData } from '../twitter/fetcher.js'
 import { renderTweetToPng } from '../renderer/render.js'
 import type { TweetData } from '../types.js'
 
-// Setup global proxy dispatcher if configured
+let proxyDispatcher: ProxyAgent | undefined
 if (config.proxyUrl) {
   console.log(`[Proxy] Using proxy: ${config.proxyUrl}`)
-  setGlobalDispatcher(new ProxyAgent(config.proxyUrl))
+  proxyDispatcher = new ProxyAgent(config.proxyUrl)
+  setGlobalDispatcher(proxyDispatcher)
 }
 
 function buildCaption(tweet: TweetData, tag: string): string {
-  const urlLine = `\n\n🔗 原文：${tweet.url}${tag ? '\n' + tag : ''}`
+  let videoNote = ''
+  if (tweet.hasVideo) {
+    const videoMedia = tweet.media.find(m => m.type === 'video')
+    if (videoMedia?.durationMs) {
+      const sec = Math.round(videoMedia.durationMs / 1000)
+      videoNote = `\n\n▶️ 视频推文 (${sec}秒)`
+    } else {
+      videoNote = '\n\n▶️ 视频推文'
+    }
+  }
+
+  const urlLine = `${videoNote}\n🔗 原文：${tweet.url}${tag ? '\n' + tag : ''}`
   const maxTextLen = 1024 - urlLine.length - 10
   let body = tweet.text
   if (body.length > maxTextLen) {
     body = body.slice(0, maxTextLen - 3) + '...'
   }
   return `${body}${urlLine}`
+}
+
+/**
+ * Download video file to Buffer (safe within Telegram 50MB bot upload limit)
+ */
+async function downloadVideoBuffer(url: string): Promise<Buffer | null> {
+  try {
+    const fetchOptions: RequestInit & { dispatcher?: any } = {
+      signal: AbortSignal.timeout(45_000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+      },
+    }
+    if (proxyDispatcher) {
+      fetchOptions.dispatcher = proxyDispatcher
+    }
+
+    const res = await fetch(url, fetchOptions)
+    if (!res.ok) return null
+
+    const contentLength = Number(res.headers.get('content-length') || 0)
+    // 50MB Telegram Bot API limit
+    if (contentLength > 50 * 1024 * 1024) {
+      console.warn(`[Bot] Video file too large: ${(contentLength / 1024 / 1024).toFixed(1)} MB`)
+      return null
+    }
+
+    const arrayBuffer = await res.arrayBuffer()
+    const buf = Buffer.from(arrayBuffer)
+    if (buf.length > 50 * 1024 * 1024) {
+      console.warn(`[Bot] Downloaded video exceeds 50MB: ${(buf.length / 1024 / 1024).toFixed(1)} MB`)
+      return null
+    }
+    return buf
+  } catch (err: any) {
+    console.warn(`[Bot] Could not download video from ${url}:`, err.message)
+    return null
+  }
 }
 
 export function createBot(): Bot {
@@ -35,15 +85,16 @@ export function createBot(): Bot {
     const isAdmin = !config.adminUserIds.length || (userId && config.adminUserIds.includes(userId))
 
     const helpText = [
-      '👋 <b>欢迎使用推特转图片机器人！</b>',
+      '👋 <b>欢迎使用推特转图片 / 视频机器人！</b>',
       '',
       '📌 <b>使用方法：</b>',
       '直接私聊发送任意推特/X链接（如 <code>https://x.com/user/status/123456</code>）。',
-      '机器人会自动抓取内容，渲染高清卡片图片并发布到设定的频道。',
       '',
-      `🔑 <b>当前用户 ID:</b> <code>${userId}</code>`,
-      isAdmin ? '✅ 您拥有操作权限。' : '⛔ 您当前未在管理员白名单中。',
-      config.targetChannelId ? `📢 <b>目标频道:</b> <code>${config.targetChannelId}</code>` : 'ℹ️ 未配置目标频道，图片将直接回复到私聊。',
+      '⚙️ <b>当前特性与设置：</b>',
+      `• <b>图文卡片:</b> ${config.theme} 模式渲染，高分辨率思源黑体`,
+      `• <b>视频处理:</b> <code>${config.videoMode}</code> 模式 (支持原生 MP4 视频直发或海报卡片)`,
+      `• <b>目标频道:</b> ${config.targetChannelId ? `<code>${config.targetChannelId}</code>` : '未配置 (仅私聊回复)'}`,
+      `• <b>用户 ID:</b> <code>${userId}</code> (${isAdmin ? '✅ 已授权' : '⛔ 未授权'})`,
     ].join('\n')
 
     await ctx.reply(helpText, { parse_mode: 'HTML' })
@@ -76,41 +127,84 @@ export function createBot(): Bot {
       try {
         // 1. Fetch tweet data
         const tweet = await getTweetData(item.id)
-
-        // 2. Render to PNG
-        const pngBuffer = await renderTweetToPng(tweet, {
-          theme: config.theme,
-          scale: 2,
-        })
-
         const caption = buildCaption(tweet, config.tag)
-        const photoFile = new InputFile(pngBuffer, `tweet-${item.id}.png`)
 
-        // 3. Send to target channel (if configured)
+        const videoMedia = tweet.media.find(m => m.type === 'video' && m.videoUrl)
+        let videoBuffer: Buffer | null = null
+
+        // If tweet has video and videoMode is 'video' or 'both', attempt video download
+        if (videoMedia?.videoUrl && (config.videoMode === 'video' || config.videoMode === 'both')) {
+          await bot.api.editMessageText(
+            ctx.chat.id,
+            statusMsg.message_id,
+            `⏳ 发现推特视频，正在下载高清 MP4 (${item.id})...`
+          ).catch(() => {})
+          videoBuffer = await downloadVideoBuffer(videoMedia.videoUrl)
+        }
+
+        // Render card image (needed if no video, if videoMode is 'card'/'both', or as fallback)
+        let pngBuffer: Buffer | null = null
+        if (!videoBuffer || config.videoMode === 'card' || config.videoMode === 'both') {
+          await bot.api.editMessageText(
+            ctx.chat.id,
+            statusMsg.message_id,
+            `⏳ 正在渲染推特高清卡片 (${item.id})...`
+          ).catch(() => {})
+          pngBuffer = await renderTweetToPng(tweet, {
+            theme: config.theme,
+            scale: 2,
+          })
+        }
+
         let channelSent = false
+
+        // 2. Publish to channel
         if (config.targetChannelId) {
           try {
-            await bot.api.sendPhoto(config.targetChannelId, photoFile, {
-              caption,
-            })
-            channelSent = true
+            if (videoBuffer && (config.videoMode === 'video' || config.videoMode === 'both')) {
+              // Send native video to channel
+              // BroadcastChannel natively recognizes Telegram video posts as HTML5 <video>!
+              const videoFile = new InputFile(videoBuffer, `tweet-${item.id}.mp4`)
+              await bot.api.sendVideo(config.targetChannelId, videoFile, {
+                caption,
+                width: videoMedia?.width,
+                height: videoMedia?.height,
+                duration: videoMedia?.durationMs ? Math.round(videoMedia.durationMs / 1000) : undefined,
+              })
+              channelSent = true
+            }
+
+            if (pngBuffer && (config.videoMode === 'card' || (config.videoMode === 'both') || !videoBuffer)) {
+              // Send photo card to channel
+              const photoFile = new InputFile(pngBuffer, `tweet-${item.id}.png`)
+              await bot.api.sendPhoto(config.targetChannelId, photoFile, {
+                caption,
+              })
+              channelSent = true
+            }
           } catch (channelErr: any) {
             console.error('[Bot] Failed to post to target channel:', channelErr)
             await ctx.reply(`⚠️ 发送到频道失败：${channelErr.message}`)
           }
         }
 
-        // 4. Send to admin (if requested or if no channel set)
+        // 3. Reply to Admin
         if (config.sendToAdmin || !config.targetChannelId) {
-          const userPhoto = new InputFile(pngBuffer, `tweet-${item.id}.png`)
-          await ctx.replyWithPhoto(userPhoto, {
-            caption: channelSent
-              ? `✅ 已发布到频道 ${config.targetChannelId}\n\n${caption}`
-              : caption,
-          })
+          if (videoBuffer && (config.videoMode === 'video' || config.videoMode === 'both')) {
+            const userVideo = new InputFile(videoBuffer, `tweet-${item.id}.mp4`)
+            await ctx.replyWithVideo(userVideo, {
+              caption: channelSent ? `✅ 已作为原生视频发布到频道 ${config.targetChannelId}\n\n${caption}` : caption,
+            })
+          }
+          if (pngBuffer && (config.videoMode === 'card' || config.videoMode === 'both' || !videoBuffer)) {
+            const userPhoto = new InputFile(pngBuffer, `tweet-${item.id}.png`)
+            await ctx.replyWithPhoto(userPhoto, {
+              caption: channelSent ? `✅ 已发布到频道 ${config.targetChannelId}\n\n${caption}` : caption,
+            })
+          }
         }
 
-        // Delete or update the status message
+        // Delete the processing status message
         await bot.api.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {})
       } catch (err: any) {
         console.error(`[Bot] Error processing tweet ${item.id}:`, err)

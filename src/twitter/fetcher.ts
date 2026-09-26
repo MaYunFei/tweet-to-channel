@@ -53,16 +53,32 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
   const media: TweetMedia[] = []
   if (Array.isArray(raw.mediaDetails)) {
     for (const m of raw.mediaDetails) {
+      const isVideo = m.type === 'video' || m.type === 'animated_gif'
+      let bestVideoUrl: string | undefined
+      let durationMs: number | undefined
+
+      if (isVideo && m.video_info) {
+        durationMs = m.video_info.duration_millis
+        if (Array.isArray(m.video_info.variants)) {
+          const mp4s = m.video_info.variants
+            .filter((v: any) => v.content_type === 'video/mp4' && v.url)
+            .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          bestVideoUrl = mp4s[0]?.url
+        }
+      }
+
       media.push({
-        type: m.type === 'photo' ? 'photo' : 'video',
+        type: isVideo ? 'video' : 'photo',
         url: m.media_url_https || m.media_url || '',
+        videoUrl: bestVideoUrl,
+        durationMs,
         width: m.width,
         height: m.height,
       })
     }
   }
 
-  // Expand URLs and strip trailing photo t.co URLs
+  // Expand URLs and strip trailing photo/video t.co URLs
   let text = raw.text || raw.full_text || ''
   if (raw.entities?.urls && Array.isArray(raw.entities.urls)) {
     for (const u of raw.entities.urls) {
@@ -79,6 +95,8 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
     quotedTweet = parseSyndicationTweet(raw.quoted_tweet, raw.quoted_tweet.id_str || '')
   }
 
+  const hasVideo = media.some(m => m.type === 'video')
+
   return {
     id: raw.id_str || tweetId,
     url: `https://x.com/${author.screenName || 'i'}/status/${tweetId}`,
@@ -87,6 +105,7 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
     createdAt: raw.created_at || new Date().toISOString(),
     media,
     quotedTweet,
+    hasVideo,
     metrics: {
       likes: raw.favorite_count ?? raw.likes ?? 0,
       retweets: raw.retweet_count ?? raw.retweets ?? 0,
@@ -120,22 +139,34 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
   }
 
   const media: TweetMedia[] = []
-  if (Array.isArray(tweet.media?.all)) {
-    for (const m of tweet.media.all) {
+  const allMedia = tweet.media?.all || tweet.media?.videos || tweet.media?.photos || []
+
+  if (Array.isArray(allMedia)) {
+    for (const m of allMedia) {
+      const isVideo = m.type === 'video' || m.type === 'gif'
+      let bestVideoUrl: string | undefined
+      let durationMs: number | undefined
+
+      if (isVideo) {
+        durationMs = m.duration ? Math.round(m.duration * 1000) : undefined
+        if (Array.isArray(m.variants)) {
+          const mp4s = m.variants
+            .filter((v: any) => v.content_type === 'video/mp4' && v.url)
+            .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          bestVideoUrl = mp4s[0]?.url
+        }
+        if (!bestVideoUrl && m.url && m.url.endsWith('.mp4')) {
+          bestVideoUrl = m.url
+        }
+      }
+
       media.push({
-        type: m.type === 'photo' ? 'photo' : 'video',
-        url: m.url || m.thumbnail_url || '',
+        type: isVideo ? 'video' : 'photo',
+        url: m.thumbnail_url || m.url || '',
+        videoUrl: bestVideoUrl,
+        durationMs,
         width: m.width,
         height: m.height,
-      })
-    }
-  } else if (Array.isArray(tweet.media?.photos)) {
-    for (const p of tweet.media.photos) {
-      media.push({
-        type: 'photo',
-        url: p.url,
-        width: p.width,
-        height: p.height,
       })
     }
   }
@@ -157,6 +188,8 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
     }
   }
 
+  const hasVideo = media.some(m => m.type === 'video')
+
   return {
     id: tweet.id || tweetId,
     url: tweet.url || `https://x.com/${author.screenName || 'i'}/status/${tweetId}`,
@@ -165,6 +198,7 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
     createdAt: tweet.created_at || new Date().toISOString(),
     media,
     quotedTweet,
+    hasVideo,
     metrics: {
       likes: tweet.likes ?? 0,
       retweets: tweet.retweets ?? 0,

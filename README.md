@@ -23,6 +23,10 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
 
 - 🚀 **Zero API Keys**: Leverages Twitter's official syndication embed API + FxTwitter fallback. No paid Twitter API subscription or developer account required.
 - 🎨 **Fast & Headless (No Browser Needed)**: Powered by Vercel [Satori](https://github.com/vercel/satori) and Rust [Resvg](https://github.com/RazrFalcon/resvg). Eliminates heavy Chromium / Puppeteer overhead; renders in ~30ms using less than 50MB RAM.
+- 🎬 **Smart Video Handling**:
+  - **Native Video Mode (`VIDEO_MODE=video`, default)**: Downloads the highest-bitrate MP4 and posts it as a native Telegram video. Because **`BroadcastChannel` natively supports Telegram videos**, your blog will render a playable HTML5 `<video>` player!
+  - **Card Mode (`VIDEO_MODE=card`)**: Renders a tweet card with the video's high-res poster, a centered Play icon (`▶`), and a duration badge (e.g. `0:17`).
+  - **Automatic Fallback**: If the video exceeds Telegram's 50MB bot upload limit or download fails, it gracefully falls back to sending the card image.
 - 🀄 **Full CJK & Emoji Support**: Automatically fetches and caches `Noto Sans SC` for crisp rendering of Chinese, Japanese, English, and symbols.
 - 🛡️ **Whitelist Protection**: Configurable `ADMIN_USER_IDS` to restrict bot usage to you alone.
 - 🌐 **Proxy Ready**: Built-in HTTP / SOCKS5 proxy support via `undici` for environments with network restrictions.

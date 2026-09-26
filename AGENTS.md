@@ -29,6 +29,12 @@ It is specifically designed to complement **[BroadcastChannel](https://github.co
 - **Global Proxy**:
   - Handled via `undici.setGlobalDispatcher(new ProxyAgent(PROXY_URL))`. When `PROXY_URL` is set, all HTTP/HTTPS requests (bot polling, tweet fetching, font download, media prefetching) are routed automatically.
 
+- **Video Handling (`VIDEO_MODE`)**:
+  - `video` (default): Downloads the highest-bitrate MP4 and uploads it using Telegram's `sendVideo`.
+  - `card`: Renders a static card image with the video poster, centered Play icon (`▶`), and duration badge.
+  - `both`: Posts both the card image and the native MP4.
+  - Fallback: If video exceeds 50MB (Telegram Bot API limit) or download fails, automatically falls back to rendering the card image.
+
 ---
 
 ## Directory Structure

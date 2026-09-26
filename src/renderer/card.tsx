@@ -1,5 +1,5 @@
 import React from 'react'
-import type { TweetData, ThemeMode } from '../types.js'
+import type { TweetData, ThemeMode, TweetMedia } from '../types.js'
 
 export interface CardThemeColors {
   bg: string
@@ -60,6 +60,14 @@ function formatDate(isoString: string): string {
   }
 }
 
+function formatDuration(ms?: number): string {
+  if (!ms) return ''
+  const totalSeconds = Math.round(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
 // X (formerly Twitter) logo icon
 const XLogo = ({ color }: { color: string }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
@@ -72,6 +80,58 @@ const VerifiedBadge = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="#1d9bf0" style={{ marginLeft: 4 }}>
     <path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.67-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.33 2.33 4.96-4.96 1.41 1.42-6.37 6.37z" />
   </svg>
+)
+
+// Video Play Button Overlay
+const VideoOverlay = ({ durationMs }: { durationMs?: number }) => (
+  <div
+    style={{
+      display: 'flex',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      pointerEvents: 'none',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        width: 58,
+        height: 58,
+        borderRadius: 29,
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        border: '2px solid rgba(255, 255, 255, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="#ffffff" style={{ marginLeft: 3 }}>
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    </div>
+    {durationMs ? (
+      <div
+        style={{
+          display: 'flex',
+          position: 'absolute',
+          bottom: 10,
+          right: 10,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          color: '#ffffff',
+          fontSize: 12,
+          fontWeight: 700,
+          padding: '2px 7px',
+          borderRadius: 4,
+        }}
+      >
+        {formatDuration(durationMs)}
+      </div>
+    ) : null}
+  </div>
 )
 
 export interface TweetCardProps {
@@ -180,11 +240,12 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
         </div>
       ) : null}
 
-      {/* Media: Images */}
+      {/* Media: Images / Video Poster */}
       {tweet.media && tweet.media.length > 0 && (
         <div
           style={{
             display: 'flex',
+            position: 'relative',
             flexDirection: 'column',
             marginBottom: 18,
             borderRadius: 16,
@@ -193,27 +254,42 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
           }}
         >
           {tweet.media.length === 1 ? (
-            <img
-              src={tweet.media[0].url}
-              alt="Media"
-              style={{
-                width: '100%',
-                maxHeight: 380,
-                objectFit: 'cover',
-              }}
-            />
-          ) : tweet.media.length === 2 ? (
-            <div style={{ display: 'flex', flexDirection: 'row', gap: 4, height: 260 }}>
+            <div style={{ display: 'flex', position: 'relative', width: '100%' }}>
               <img
                 src={tweet.media[0].url}
-                alt="Media 1"
-                style={{ width: '50%', height: '100%', objectFit: 'cover' }}
+                alt="Media"
+                style={{
+                  width: '100%',
+                  maxHeight: 380,
+                  objectFit: 'cover',
+                }}
               />
-              <img
-                src={tweet.media[1].url}
-                alt="Media 2"
-                style={{ width: '50%', height: '100%', objectFit: 'cover' }}
-              />
+              {tweet.media[0].type === 'video' && (
+                <VideoOverlay durationMs={tweet.media[0].durationMs} />
+              )}
+            </div>
+          ) : tweet.media.length === 2 ? (
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 4, height: 260 }}>
+              <div style={{ display: 'flex', position: 'relative', width: '50%', height: '100%' }}>
+                <img
+                  src={tweet.media[0].url}
+                  alt="Media 1"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                {tweet.media[0].type === 'video' && (
+                  <VideoOverlay durationMs={tweet.media[0].durationMs} />
+                )}
+              </div>
+              <div style={{ display: 'flex', position: 'relative', width: '50%', height: '100%' }}>
+                <img
+                  src={tweet.media[1].url}
+                  alt="Media 2"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                {tweet.media[1].type === 'video' && (
+                  <VideoOverlay durationMs={tweet.media[1].durationMs} />
+                )}
+              </div>
             </div>
           ) : (
             // 3 or 4 images: 2x2 grid

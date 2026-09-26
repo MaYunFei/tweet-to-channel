@@ -7,7 +7,9 @@ export interface TweetAuthor {
 
 export interface TweetMedia {
   type: 'photo' | 'video' | 'gif'
-  url: string
+  url: string // Image URL or Video Poster/Thumbnail URL
+  videoUrl?: string // Direct MP4 URL if type === 'video'
+  durationMs?: number
   width?: number
   height?: number
 }
@@ -28,9 +30,11 @@ export interface TweetData {
   media: TweetMedia[]
   quotedTweet?: TweetData | null
   metrics: TweetMetrics
+  hasVideo?: boolean
 }
 
 export type ThemeMode = 'light' | 'dark' | 'dim'
+export type VideoMode = 'video' | 'card' | 'both'
 
 export interface RenderOptions {
   theme?: ThemeMode
