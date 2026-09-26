@@ -3,6 +3,8 @@ dist
 .env
 data/fonts/*.woff
 data/fonts/*.ttf
+data/emojis/*.svg
+data/settings.json
 output.png
 test*.png
 .DS_Store
