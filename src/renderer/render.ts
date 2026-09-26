@@ -4,6 +4,7 @@ import React from 'react'
 import { ProxyAgent } from 'undici'
 import { config } from '../config.js'
 import { loadFonts } from './fonts.js'
+import { getEmojiAsset } from './emoji.js'
 import { TweetCard } from './card.js'
 import type { TweetData, RenderOptions } from '../types.js'
 
@@ -103,6 +104,13 @@ export async function renderTweetToPng(
       weight: f.weight,
       style: f.style,
     })),
+    loadAdditionalAsset: async (languageCode, segment) => {
+      if (languageCode === 'emoji') {
+        const asset = await getEmojiAsset(segment)
+        if (asset) return asset
+      }
+      return ''
+    },
   })
 
   const resvg = new Resvg(svg, {

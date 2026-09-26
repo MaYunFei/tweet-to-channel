@@ -27,7 +27,11 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
   - **Native Video Mode (`VIDEO_MODE=video`, default)**: Downloads the highest-bitrate MP4 and posts it as a native Telegram video. Because **`BroadcastChannel` natively supports Telegram videos**, your blog will render a playable HTML5 `<video>` player!
   - **Card Mode (`VIDEO_MODE=card`)**: Renders a tweet card with the video's high-res poster, a centered Play icon (`▶`), and a duration badge (e.g. `0:17`).
   - **Automatic Fallback**: If the video exceeds Telegram's 50MB bot upload limit or download fails, it gracefully falls back to sending the card image.
-- 🀄 **Full CJK & Emoji Support**: Automatically fetches and caches `Noto Sans SC` for crisp rendering of Chinese, Japanese, English, and symbols.
+- 🀄 **Full CJK & Crisp Color Emoji Support**: Automatically fetches and caches `Noto Sans SC`, and renders all system emojis (emoticons, flags, symbols) using high-resolution Twemoji SVG vector assets with local disk caching.
+- 📦 **Native Content Transfer Mode (Detach & De-identify)**:
+  - Toggle off card rendering to post tweets as **native Telegram media albums, plain text, or native videos**.
+  - Strip source links and author info completely to protect original poster privacy and make posts look like native blog entries on BroadcastChannel.
+- ⚙️ **Interactive Telegram Settings Panel**: Use `/settings` to toggle modes, privacy, tags, video handling, and themes with inline keyboard buttons in real time.
 - 🛡️ **Whitelist Protection**: Configurable `ADMIN_USER_IDS` to restrict bot usage to you alone.
 - 🌐 **Proxy Ready**: Built-in HTTP / SOCKS5 proxy support via `undici` for environments with network restrictions.
 - 🛠️ **Built-in CLI**: Quickly test and export tweet images locally via `pnpm convert`.
@@ -106,15 +110,23 @@ docker compose logs -f
 
 ---
 
-## 🤖 Usage
+## 🤖 Modes & Commands
 
-1. Add your Bot as an **Administrator** in your target channel (with "Post Messages" permission).
-2. Open a direct message with your Bot on Telegram and send `/start`.
-3. Send any tweet link:
-   ```text
-   https://x.com/user/status/1234567890
-   ```
-4. The bot will render the tweet card and automatically forward it to your channel!
+### 1. Card Mode vs. Transfer Mode
+
+| Tweet Type | Card Mode (Default) | Transfer Mode (Privacy / Native) |
+| :--- | :--- | :--- |
+| **Text Only** | Renders a high-res Twitter card PNG with author info. Caption includes source URL. | **No card image**. Sends clean text message directly. |
+| **Text + 1~4 Photos** | Embeds photos into the card layout. | **No card image**. Downloads original high-res photos and sends as a native Telegram album gallery. |
+| **Text + Video** | Posts native MP4, and caption includes `▶️ Video` + original URL + hashtag. | Posts native MP4, caption contains **pure clean text only** (no links, no author, no Twitter branding). |
+
+### 2. Commands & Control
+
+- `/settings`: Opens the interactive settings keyboard in Telegram to toggle features in real time.
+- Send any tweet URL: Processed according to current global settings.
+- `/anon <url>`: One-shot anonymous transfer (no card, no source link, no hashtag).
+- `/raw <url>`: One-shot native transfer (native media, keeps source link).
+- `/card <url>`: One-shot card rendering.
 
 ---
 

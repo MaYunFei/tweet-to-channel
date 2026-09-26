@@ -52,7 +52,8 @@ tweet-to-image/
 ├── .env.example               # Template for environment variables
 ├── src/
 │   ├── config.ts              # Loads & validates environment variables
-│   ├── types.ts               # Shared TypeScript interfaces (TweetData, etc.)
+│   ├── settings.ts            # Dynamic settings manager (persists to data/settings.json)
+│   ├── types.ts               # Shared TypeScript interfaces (TweetData, BotSettings, etc.)
 │   ├── index.ts               # Main application entry point (starts bot)
 │   ├── cli.ts                 # CLI converter utility (pnpm convert)
 │   ├── twitter/
@@ -60,11 +61,12 @@ tweet-to-image/
 │   │   └── fetcher.ts         # Syndication + FxTwitter dual fetcher
 │   ├── renderer/
 │   │   ├── fonts.ts           # Noto Sans SC auto-download and disk cache
+│   │   ├── emoji.ts           # Twemoji codepoint parser + disk cache
 │   │   ├── card.tsx           # React JSX tweet card template (Satori-compatible)
 │   │   └── render.ts          # Image prefetcher + Satori + Resvg pipeline
 │   └── bot/
 │       └── index.ts           # grammY bot logic, whitelist check, channel sender
-└── data/                      # Persistent storage (fonts, logs)
+└── data/                      # Persistent storage (fonts, emojis, settings.json)
 ```
 
 ---

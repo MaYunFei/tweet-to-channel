@@ -36,6 +36,14 @@ export interface TweetData {
 export type ThemeMode = 'light' | 'dark' | 'dim'
 export type VideoMode = 'video' | 'card' | 'both'
 
+export interface BotSettings {
+  renderCard: boolean // true: 生成推特长图卡片, false: 原生图文/视频搬运模式
+  includeSource: boolean // true: 包含推特原文链接, false: 彻底脱敏抹除来源
+  includeTag: boolean // true: 附带 #Twitter 标签, false: 不带标签
+  videoMode: VideoMode // 'video' | 'card' | 'both'
+  theme: ThemeMode // 'dark' | 'dim' | 'light'
+}
+
 export interface RenderOptions {
   theme?: ThemeMode
   scale?: number
