@@ -43,6 +43,10 @@ export const config = {
   // Custom hashtag appended to Telegram caption (e.g. "#Twitter")
   tag: process.env.TAG || '#Twitter',
 
+  // Custom Telegram Bot API root (for self-hosted local Bot API server)
+  // Increases file upload limit from 50MB to 2000MB (2GB)
+  telegramApiRoot: process.env.TELEGRAM_API_ROOT || '',
+
   // Local font cache directory
   fontDir: process.env.FONT_DIR || './data/fonts',
 }

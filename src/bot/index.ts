@@ -38,9 +38,12 @@ function buildCaption(tweet: TweetData, tag: string): string {
  * Download video file to Buffer (safe within Telegram 50MB bot upload limit)
  */
 async function downloadVideoBuffer(url: string): Promise<Buffer | null> {
+  const maxBytes = config.telegramApiRoot ? 2000 * 1024 * 1024 : 50 * 1024 * 1024
+  const maxMb = config.telegramApiRoot ? 2000 : 50
+
   try {
     const fetchOptions: RequestInit & { dispatcher?: any } = {
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(60_000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
       },
@@ -53,16 +56,15 @@ async function downloadVideoBuffer(url: string): Promise<Buffer | null> {
     if (!res.ok) return null
 
     const contentLength = Number(res.headers.get('content-length') || 0)
-    // 50MB Telegram Bot API limit
-    if (contentLength > 50 * 1024 * 1024) {
-      console.warn(`[Bot] Video file too large: ${(contentLength / 1024 / 1024).toFixed(1)} MB`)
+    if (contentLength > maxBytes) {
+      console.warn(`[Bot] Video file too large: ${(contentLength / 1024 / 1024).toFixed(1)} MB (Limit: ${maxMb} MB)`)
       return null
     }
 
     const arrayBuffer = await res.arrayBuffer()
     const buf = Buffer.from(arrayBuffer)
-    if (buf.length > 50 * 1024 * 1024) {
-      console.warn(`[Bot] Downloaded video exceeds 50MB: ${(buf.length / 1024 / 1024).toFixed(1)} MB`)
+    if (buf.length > maxBytes) {
+      console.warn(`[Bot] Downloaded video exceeds limit: ${(buf.length / 1024 / 1024).toFixed(1)} MB (Limit: ${maxMb} MB)`)
       return null
     }
     return buf
@@ -77,7 +79,11 @@ export function createBot(): Bot {
     throw new Error('BOT_TOKEN is not set in environment or .env file!')
   }
 
-  const bot = new Bot(config.botToken)
+  const bot = new Bot(config.botToken, {
+    client: {
+      ...(config.telegramApiRoot ? { apiRoot: config.telegramApiRoot } : {}),
+    },
+  })
 
   // Welcome / Help command
   bot.command(['start', 'help'], async ctx => {
