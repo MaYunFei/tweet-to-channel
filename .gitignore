@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+data/fonts/*.woff
+data/fonts/*.ttf
+output.png
+test*.png
+.DS_Store
+*.log
