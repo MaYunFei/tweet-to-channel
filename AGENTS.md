@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Instructions and context for AI coding agents working on **tweet-to-image**.
+Instructions and context for AI coding agents working on **tweet-to-channel**.
 
 ---
 
 ## Project Overview
 
-`tweet-to-image` is a lightweight, zero-API-key service and Telegram Bot that converts Twitter/X posts into high-resolution rendered card images (PNG) and publishes them directly to a Telegram Channel with formatted captions.
+`tweet-to-channel` is a lightweight, zero-API-key service and Telegram Bot that converts Twitter/X posts into high-resolution rendered card images (PNG), native videos, and albums, and publishes them directly to a Telegram Channel with formatted captions.
 
 It is specifically designed to complement **[BroadcastChannel](https://github.com/MaYunFei/BroadcastChannel)** (turning a Telegram Channel into a static/SSR microblog), ensuring Chinese visitors without VPN access can clearly view tweets and media natively on the web.
 
@@ -40,7 +40,7 @@ It is specifically designed to complement **[BroadcastChannel](https://github.co
 ## Directory Structure
 
 ```text
-tweet-to-image/
+tweet-to-channel/
 ├── .github/
 │   └── workflows/
 │       └── docker.yml         # GitHub Actions multi-arch Docker CI/CD

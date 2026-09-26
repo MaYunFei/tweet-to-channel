@@ -1,13 +1,13 @@
-# Tweet to Image 📸
+# Tweet to Channel 📢
 
-> **Convert Twitter / X posts into beautiful high-resolution card images and publish them directly to your Telegram Channel.**  
+> **Convert Twitter / X posts into beautiful cards, native videos & photo albums, and auto-publish them to your Telegram Channel.**  
 > Built as an ideal companion for **[BroadcastChannel](https://github.com/MaYunFei/BroadcastChannel)**.
 
 English | [简体中文](./README.zh-cn.md)
 
 ---
 
-## 💡 Why Tweet to Image?
+## 💡 Why Tweet to Channel?
 
 When pairing Telegram channels with microblogging engines like **[BroadcastChannel](https://github.com/MaYunFei/BroadcastChannel)**, sharing plain Twitter links often results in poor previews:
 1. **Broken previews**: Twitter aggressively restricts scrapers, leaving link previews blank or generic.
@@ -44,8 +44,8 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/MaYunFei/tweet-to-image.git
-cd tweet-to-image
+git clone https://github.com/MaYunFei/tweet-to-channel.git
+cd tweet-to-channel
 pnpm install
 ```
 
@@ -107,8 +107,8 @@ Pre-built multi-arch images (`linux/amd64` and `linux/arm64`) are automatically 
 
 ```bash
 # 1. Download docker-compose.yml and .env.example
-curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/.env.example
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-channel/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-channel/main/.env.example
 cp .env.example .env
 
 # 2. Configure .env with your tokens
@@ -125,14 +125,14 @@ docker compose logs -f
 
 ```bash
 docker run -d \
-  --name tweet-to-image \
+  --name tweet-to-channel \
   --restart unless-stopped \
   -e BOT_TOKEN="your_bot_token" \
   -e ADMIN_USER_IDS="your_user_id" \
   -e TARGET_CHANNEL_ID="@your_channel" \
   -e THEME="dark" \
   -v $(pwd)/data:/app/data \
-  ghcr.io/mayunfei/tweet-to-image:latest
+  ghcr.io/mayunfei/tweet-to-channel:latest
 ```
 
 ---

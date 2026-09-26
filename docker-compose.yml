@@ -1,10 +1,10 @@
 services:
-  tweet-to-image:
+  tweet-to-channel:
     # Option 1: Use prebuilt image from GitHub Container Registry (Recommended)
-    image: ghcr.io/mayunfei/tweet-to-image:latest
+    image: ghcr.io/mayunfei/tweet-to-channel:latest
     # Option 2: Build locally from source
     # build: .
-    container_name: tweet-to-image
+    container_name: tweet-to-channel
     restart: unless-stopped
     env_file:
       - .env

@@ -1,7 +1,7 @@
-# Tweet to Image 📸
+# Tweet to Channel 📢
 
-> **将 Twitter / X 推文转换为精美高清卡片图片，并自动发布到你的 Telegram 频道。**  
-> 专为 **[BroadcastChannel](https://github.com/MaYunFei/BroadcastChannel)** 设计，让国内用户无需翻墙也能在博客上直接浏览推文全文与配图。
+> **将 Twitter / X 推文转换为精美卡片长图、原生高清视频与多图相册，并自动发布到你的 Telegram 频道。**  
+> 专为 **[BroadcastChannel](https://github.com/MaYunFei/BroadcastChannel)** 设计，让国内用户无需翻墙也能在博客上直接浏览推文全文、配图与视频。
 
 [English](./README.md) | 简体中文
 
@@ -44,8 +44,8 @@
 ### 1. 克隆代码与安装依赖
 
 ```bash
-git clone https://github.com/MaYunFei/tweet-to-image.git
-cd tweet-to-image
+git clone https://github.com/MaYunFei/tweet-to-channel.git
+cd tweet-to-channel
 pnpm install
 ```
 
@@ -113,8 +113,8 @@ pnpm start
 
 ```bash
 # 1. 下载 docker-compose.yml 与配置文件模板
-curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/.env.example
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-channel/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-channel/main/.env.example
 cp .env.example .env
 
 # 2. 编辑配置填入你的 BOT_TOKEN
@@ -131,14 +131,14 @@ docker compose logs -f
 
 ```bash
 docker run -d \
-  --name tweet-to-image \
+  --name tweet-to-channel \
   --restart unless-stopped \
   -e BOT_TOKEN="你的BotToken" \
   -e ADMIN_USER_IDS="你的TelegramID" \
   -e TARGET_CHANNEL_ID="@你的频道" \
   -e THEME="dark" \
   -v $(pwd)/data:/app/data \
-  ghcr.io/mayunfei/tweet-to-image:latest
+  ghcr.io/mayunfei/tweet-to-channel:latest
 ```
 
 ---
