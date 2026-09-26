@@ -35,7 +35,7 @@
 - 🛡️ **严格安全鉴权**：支持配置 `ADMIN_USER_IDS` 管理员白名单，防止机器人被他人滥用。
 - 🌐 **代理支持**：原生支持 HTTP / SOCKS5 代理，国内服务器也可顺畅连接 Telegram 与 Twitter。
 - 🛠️ **自带 CLI 转换工具**：无需启动机器人，一行命令即可把推文转为图片。
-- 🐳 **Docker 一键部署**：提供精简 Docker 镜像与 Compose 配置，随时自建。
+- 🐳 **Docker 自动化多架构镜像**：内置 GitHub Actions CI/CD，每次推送到 main 或发 Release 会自动构建并发布 `linux/amd64` 和 `linux/arm64` 镜像到 GitHub Container Registry (GHCR)，服务器无需配置编译环境即可一键拉取运行。
 
 ---
 
@@ -107,18 +107,38 @@ pnpm start
 
 ## 🐳 Docker 部署（推荐）
 
-在你的 VPS 服务器上，一键启动容器保活运行：
+本项目已配置 GitHub Actions 自动构建多架构 Docker 镜像（支持 AMD64 与 ARM64/甲骨文云），你可以直接拉取预构建镜像，无需在服务器上安装 Node.js 或编译代码。
+
+### 方式 A：Docker Compose 部署（最推荐）
 
 ```bash
-# 1. 准备好 .env 文件
+# 1. 下载 docker-compose.yml 与配置文件模板
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/.env.example
 cp .env.example .env
+
+# 2. 编辑配置填入你的 BOT_TOKEN
 vim .env
 
-# 2. 启动服务
+# 3. 一键拉取镜像并后台运行
 docker compose up -d
 
-# 3. 查看运行日志
+# 4. 查看运行日志
 docker compose logs -f
+```
+
+### 方式 B：单命令 `docker run` 直接运行
+
+```bash
+docker run -d \
+  --name tweet-to-image \
+  --restart unless-stopped \
+  -e BOT_TOKEN="你的BotToken" \
+  -e ADMIN_USER_IDS="你的TelegramID" \
+  -e TARGET_CHANNEL_ID="@你的频道" \
+  -e THEME="dark" \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/mayunfei/tweet-to-image:latest
 ```
 
 ---

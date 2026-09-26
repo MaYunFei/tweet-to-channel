@@ -35,7 +35,7 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
 - 🛡️ **Whitelist Protection**: Configurable `ADMIN_USER_IDS` to restrict bot usage to you alone.
 - 🌐 **Proxy Ready**: Built-in HTTP / SOCKS5 proxy support via `undici` for environments with network restrictions.
 - 🛠️ **Built-in CLI**: Quickly test and export tweet images locally via `pnpm convert`.
-- 🐳 **Docker Ready**: One-command deployment with Docker Compose.
+- 🐳 **Automated Multi-arch Docker**: Built-in GitHub Actions CI/CD automatically builds and pushes `linux/amd64` and `linux/arm64` images to GitHub Container Registry (GHCR) on every push or release. Deploy without compiling locally!
 
 ---
 
@@ -99,13 +99,40 @@ pnpm start
 
 ---
 
-## 🐳 Docker Deployment
+## 🐳 Docker Deployment (Recommended)
+
+Pre-built multi-arch images (`linux/amd64` and `linux/arm64`) are automatically published to GHCR.
+
+### Option A: Docker Compose
 
 ```bash
+# 1. Download docker-compose.yml and .env.example
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/MaYunFei/tweet-to-image/main/.env.example
 cp .env.example .env
-# Edit .env with your tokens
+
+# 2. Configure .env with your tokens
+vim .env
+
+# 3. Pull image and start container
 docker compose up -d
+
+# 4. View logs
 docker compose logs -f
+```
+
+### Option B: Direct `docker run`
+
+```bash
+docker run -d \
+  --name tweet-to-image \
+  --restart unless-stopped \
+  -e BOT_TOKEN="your_bot_token" \
+  -e ADMIN_USER_IDS="your_user_id" \
+  -e TARGET_CHANNEL_ID="@your_channel" \
+  -e THEME="dark" \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/mayunfei/tweet-to-image:latest
 ```
 
 ---

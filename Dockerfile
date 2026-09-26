@@ -30,9 +30,8 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src ./src
 
 ENV NODE_ENV=production
 
 # Run bot
-CMD ["pnpm", "start"]
+CMD ["node", "dist/index.js"]

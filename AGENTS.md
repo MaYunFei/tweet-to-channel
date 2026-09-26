@@ -41,6 +41,9 @@ It is specifically designed to complement **[BroadcastChannel](https://github.co
 
 ```text
 tweet-to-image/
+├── .github/
+│   └── workflows/
+│       └── docker.yml         # GitHub Actions multi-arch Docker CI/CD
 ├── AGENTS.md                  # This file (Agent guide)
 ├── README.md                  # Human-facing documentation (English)
 ├── README.zh-cn.md            # Human-facing documentation (Chinese)

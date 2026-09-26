@@ -1,6 +1,9 @@
 services:
   tweet-to-image:
-    build: .
+    # Option 1: Use prebuilt image from GitHub Container Registry (Recommended)
+    image: ghcr.io/mayunfei/tweet-to-image:latest
+    # Option 2: Build locally from source
+    # build: .
     container_name: tweet-to-image
     restart: unless-stopped
     env_file:
