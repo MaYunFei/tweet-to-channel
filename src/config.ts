@@ -76,4 +76,9 @@ export const config = {
 
   // Cache expiration time in hours (default: 24 hours)
   cacheTtlHours: Number(process.env.CACHE_TTL_HOURS) || 24,
+
+  // HTTP API Server Configuration
+  apiPort: Number(process.env.API_PORT || process.env.PORT) || 3000,
+  apiAuthToken: process.env.API_AUTH_TOKEN || '',
+  enableApi: process.env.ENABLE_API !== 'false',
 }

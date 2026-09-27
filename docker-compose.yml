@@ -10,3 +10,6 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+    ports:
+      - "${API_PORT:-3000}:${API_PORT:-3000}"
+

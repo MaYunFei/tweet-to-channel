@@ -181,6 +181,97 @@ docker run -d \
 
 ---
 
+## 📱 iOS 快捷指令一键分享 (iOS Shortcuts)
+
+支持直接在 iPhone / iPad 上的 Twitter / X 官方 App 中，点击推文下方的 **“分享 (Share)”** 按钮，选择快捷指令一键发布到 Telegram 频道，无需手动复制链接或打开 Telegram！
+
+### 核心特性
+- ⚡ **异步队列即时响应**：手机发起请求后，接口在 50ms 内立即返回成功通知，手机端绝不卡顿等待；后台通过严格的先进先出（FIFO）队列排队下载、渲染与发布。
+- 🔒 **Token 简单鉴权**：接口支持 Bearer Token、自定义 Header 或 URL 参数鉴权，安全防止他人盗用。
+- 📦 **自动私聊备份与失败告警**：通过快捷指令提交的推文发布成功后，Bot 会自动向你的私聊（`ADMIN_USER_IDS`）发送一份成品作为备份和完成通知；如果推文已被作者删除或网络出错，也会直接在私聊中弹窗报警说明原因。
+- ⚙️ **无缝跟随全局设置**：默认采用 Bot 当前设置（是否翻译、卡片模式、视频模式等）。需要切换样式时，直接在 Telegram 中发送 `/settings` 更改即可即时生效。
+
+### 1. 服务端配置 (`.env`)
+
+```env
+# 启用内置 HTTP API 接口服务
+ENABLE_API=true
+
+# API 监听端口（默认 3000）
+API_PORT=3000
+
+# 接口鉴权密钥（强烈建议设置复杂长字符）
+API_AUTH_TOKEN=your_super_secret_token_123456
+```
+
+> **提示**：如果是 Docker 部署，请确保在 `docker-compose.yml` 中映射了该端口（默认模板已包含 `"${API_PORT:-3000}:${API_PORT:-3000}"`），并在反向代理（如 Nginx、Caddy、Cloudflare 等）配置 SSL 证书（iOS 快捷指令要求 HTTPS）。
+
+### 2. HTTP 接口调用规范
+
+- **请求路径**：`POST /api/publish`
+- **请求头**：
+  - `Authorization: Bearer <API_AUTH_TOKEN>`
+  - `Content-Type: application/json`
+- **请求体 (JSON)**：
+  ```json
+  {
+    "url": "https://x.com/elonmusk/status/1234567890"
+  }
+  ```
+
+**cURL 快速测试**：
+```bash
+curl -X POST http://127.0.0.1:3000/api/publish \
+  -H "Authorization: Bearer your_super_secret_token_123456" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://x.com/elonmusk/status/1234567890"}'
+```
+
+**返回示例**：
+```json
+{
+  "success": true,
+  "queued": true,
+  "count": 1,
+  "ids": ["1234567890"],
+  "queueSize": 1,
+  "message": "推文已成功加入后台处理队列"
+}
+```
+
+### 3. iOS 快捷指令手把手配置步骤
+
+打开 iPhone 的 **「快捷指令 (Shortcuts)」** App，点击右上角 **「+」** 新建快捷指令：
+
+1. **重命名快捷指令**：点击顶部的名称，修改为 **`转发推特到频道`**（或任意你喜欢的名字）。
+2. **开启共享表单**：
+   - 点击底部中央的 **「i」**（详细信息）图标；
+   - 勾选打开 **「在共享表单中显示」**；
+   - 点击出现的「接受」类型，只勾选 **「Safari 网页」**、**「URL」** 与 **「文本」**。
+3. **添加动作 1：提取推文链接**
+   - 点击添加操作，搜索并添加：**「从输入中获取 URL」**；
+   - 参数选择：从 **`[快捷指令输入]`** 中获取。
+4. **添加动作 2：发送网络请求**
+   - 搜索并添加：**「获取 URL 的内容」**；
+   - 点击展开详细参数：
+     - **URL**：填入你的公开接口地址，例如 `https://api.yourdomain.com/api/publish`；
+     - **方法**：选择 `POST`；
+     - **头部**：
+       - 添加新头部 ➔ 键名：`Authorization`，值：`Bearer 你的API_AUTH_TOKEN`；
+       - 添加新头部 ➔ 键名：`Content-Type`，值：`application/json`；
+     - **请求体**：选择 `JSON`；
+       - 点击「添加新字段」➔ 选择「文本」；
+       - 键名填：`url`；
+       - 值点击选择上方提取的：`[来自输入的 URL]`。
+5. **添加动作 3：轻量震动与完成提示**
+   - 搜索并添加：**「显示通知」**；
+     - 文本填入：`✅ 已提交后台处理`；
+   - *(可选)* 搜索并添加：**「播放触觉反馈」**（选择成功或轻度），点完后震动提示。
+
+🎉 **配置完成！** 现在在 X (Twitter) 官方客户端看到任何推文，点击分享 ➔ 选择「转发推特到频道」，手机右上角立刻弹出提示，几秒后频道与你的私聊便会收到排版精美的推文！
+
+---
+
 ## 📄 开源许可
 
 [MIT License](./LICENSE)

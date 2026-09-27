@@ -62,7 +62,10 @@ tweet-to-channel/
 │   ├── config.ts              # Loads & validates environment variables
 │   ├── settings.ts            # Dynamic settings manager (persists to data/settings.json)
 │   ├── types.ts               # Shared TypeScript interfaces (TweetData, BotSettings, etc.)
-│   ├── index.ts               # Main application entry point (starts bot)
+│   ├── queue.ts               # Thread-safe FIFO asynchronous task queue
+│   ├── processor.ts           # Unified tweet fetching, rendering, and delivery processor
+│   ├── server.ts              # Lightweight HTTP API server (for iOS Shortcuts / Webhooks)
+│   ├── index.ts               # Main application entry point (starts bot & API server)
 │   ├── cli.ts                 # CLI converter utility (pnpm convert)
 │   ├── twitter/
 │   │   ├── parser.ts          # URL / ID extraction and normalization

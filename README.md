@@ -174,6 +174,77 @@ docker run -d \
 
 ---
 
+## 📱 iOS Shortcuts Integration
+
+Share directly from the official Twitter / X app on iOS / iPadOS to your Telegram channel using the native Share Sheet!
+
+### Key Features
+- ⚡ **Asynchronous Instant Response**: The endpoint acknowledges your request within ~50ms so your phone never hangs or times out. Tweet rendering and downloading are executed in an orderly background FIFO queue.
+- 🔒 **Token Authentication**: Secured with Bearer Token, custom headers, or query parameters.
+- 📦 **Automatic Private Archive & Failure Alerts**: Upon successful publishing, the bot sends an identical copy to your Telegram private chat (`ADMIN_USER_IDS`) as an archive and delivery receipt. If the tweet fails or is deleted, you receive an error notification in DM.
+- ⚙️ **Follows Global Settings**: Automatically adopts your current bot settings (translation, card mode, video mode, etc.). Change settings anytime via `/settings` in Telegram.
+
+### 1. Server Configuration (`.env`)
+
+```env
+# Enable HTTP API server
+ENABLE_API=true
+
+# API listening port (default: 3000)
+API_PORT=3000
+
+# Secret token for authentication
+API_AUTH_TOKEN=your_super_secret_token_123456
+```
+
+### 2. HTTP API Specification
+
+- **Endpoint**: `POST /api/publish`
+- **Headers**:
+  - `Authorization: Bearer <API_AUTH_TOKEN>`
+  - `Content-Type: application/json`
+- **Body (JSON)**:
+  ```json
+  {
+    "url": "https://x.com/elonmusk/status/1234567890"
+  }
+  ```
+
+**cURL Example**:
+```bash
+curl -X POST http://127.0.0.1:3000/api/publish \
+  -H "Authorization: Bearer your_super_secret_token_123456" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://x.com/elonmusk/status/1234567890"}'
+```
+
+### 3. iOS Shortcuts Setup (Step-by-Step)
+
+Open the **Shortcuts** app on your iPhone and tap **「+」** to create a new shortcut:
+
+1. **Name the shortcut**: e.g., **`Post Tweet to Channel`**.
+2. **Enable Share Sheet**:
+   - Tap the **「(i)」** info icon at the bottom;
+   - Enable **「Show in Share Sheet」**;
+   - In the "Accepts" list, select **Safari web pages**, **URLs**, and **Text**.
+3. **Action 1: Extract Tweet URL**:
+   - Add action: **「Get URLs from input」**;
+   - Set source to: **`[Shortcut Input]`**.
+4. **Action 2: Send HTTP Request**:
+   - Add action: **「Get Contents of URL」**;
+   - Set **URL**: your server endpoint (e.g. `https://api.yourdomain.com/api/publish`);
+   - Set **Method**: `POST`;
+   - In **Headers**:
+     - Key: `Authorization`, Value: `Bearer your_super_secret_token_123456`
+     - Key: `Content-Type`, Value: `application/json`
+   - In **Request Body**: Choose `JSON`:
+     - Add string field `url` with value: `[URLs from input]`.
+5. **Action 3: Haptic Feedback & Notification**:
+   - Add action: **「Show Notification」** with text `✅ Queued for processing`.
+   - *(Optional)* Add action: **「Play Haptics」**.
+
+---
+
 ## 🤖 For AI Coding Agents
 
 See [AGENTS.md](./AGENTS.md) for architecture details, constraints, and development guidelines.
