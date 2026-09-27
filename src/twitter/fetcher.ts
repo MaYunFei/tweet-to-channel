@@ -1,6 +1,7 @@
 import { ProxyAgent } from 'undici'
 import { config } from '../config.js'
-import type { TweetData, TweetMedia, TweetAuthor } from '../types.js'
+import { getCachedJson, setCachedJson } from '../cache.js'
+import type { TweetData, TweetMedia, TweetAuthor, VideoVariant } from '../types.js'
 
 let proxyDispatcher: ProxyAgent | undefined
 if (config.proxyUrl) {
@@ -39,6 +40,11 @@ async function fetchFromSyndication(tweetId: string): Promise<TweetData | null> 
   }
 
   const raw = (await res.json()) as Record<string, any>
+  // Twitter returns a TweetTombstone or empty object when a tweet is NSFW / Age-restricted / deleted / withheld
+  if (!raw || raw.__typename === 'TweetTombstone' || raw.tombstone || !raw.user || !raw.user.screen_name) {
+    return null
+  }
+
   return parseSyndicationTweet(raw, tweetId)
 }
 
@@ -57,13 +63,31 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
       let bestVideoUrl: string | undefined
       let durationMs: number | undefined
 
+      const videoVariants: VideoVariant[] = []
       if (isVideo && m.video_info) {
         durationMs = m.video_info.duration_millis
         if (Array.isArray(m.video_info.variants)) {
           const mp4s = m.video_info.variants
             .filter((v: any) => v.content_type === 'video/mp4' && v.url)
             .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          for (const v of mp4s) {
+            videoVariants.push({
+              url: v.url,
+              bitrate: v.bitrate,
+              contentType: v.content_type,
+            })
+          }
           bestVideoUrl = mp4s[0]?.url
+        }
+      }
+
+      let width = m.width
+      let height = m.height
+      if ((!width || !height) && bestVideoUrl) {
+        const dimMatch = bestVideoUrl.match(/\/(\d+)x(\d+)\//)
+        if (dimMatch) {
+          width = parseInt(dimMatch[1], 10)
+          height = parseInt(dimMatch[2], 10)
         }
       }
 
@@ -71,9 +95,10 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
         type: isVideo ? 'video' : 'photo',
         url: m.media_url_https || m.media_url || '',
         videoUrl: bestVideoUrl,
+        videoVariants: videoVariants.length > 0 ? videoVariants : undefined,
         durationMs,
-        width: m.width,
-        height: m.height,
+        width,
+        height,
       })
     }
   }
@@ -106,6 +131,7 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
     media,
     quotedTweet,
     hasVideo,
+    possiblySensitive: Boolean(raw.possibly_sensitive),
     metrics: {
       likes: raw.favorite_count ?? raw.likes ?? 0,
       retweets: raw.retweet_count ?? raw.retweets ?? 0,
@@ -147,16 +173,40 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
       let bestVideoUrl: string | undefined
       let durationMs: number | undefined
 
+      const videoVariants: VideoVariant[] = []
       if (isVideo) {
         durationMs = m.duration ? Math.round(m.duration * 1000) : undefined
-        if (Array.isArray(m.variants)) {
-          const mp4s = m.variants
-            .filter((v: any) => v.content_type === 'video/mp4' && v.url)
+        const candidateList = Array.isArray(m.variants)
+          ? m.variants
+          : Array.isArray(m.formats)
+            ? m.formats
+            : []
+        if (candidateList.length > 0) {
+          const mp4s = candidateList
+            .filter((v: any) => (v.content_type === 'video/mp4' || v.container === 'mp4' || v.url?.includes('.mp4')) && v.url)
             .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          for (const v of mp4s) {
+            videoVariants.push({
+              url: v.url,
+              bitrate: v.bitrate,
+              contentType: v.content_type || 'video/mp4',
+            })
+          }
           bestVideoUrl = mp4s[0]?.url
         }
-        if (!bestVideoUrl && m.url && m.url.endsWith('.mp4')) {
+        if (!bestVideoUrl && m.url && (m.url.includes('.mp4') || m.format === 'video/mp4')) {
           bestVideoUrl = m.url
+          videoVariants.push({ url: m.url })
+        }
+      }
+
+      let width = m.width
+      let height = m.height
+      if ((!width || !height) && bestVideoUrl) {
+        const dimMatch = bestVideoUrl.match(/\/(\d+)x(\d+)\//)
+        if (dimMatch) {
+          width = parseInt(dimMatch[1], 10)
+          height = parseInt(dimMatch[2], 10)
         }
       }
 
@@ -164,9 +214,10 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
         type: isVideo ? 'video' : 'photo',
         url: m.thumbnail_url || m.url || '',
         videoUrl: bestVideoUrl,
+        videoVariants: videoVariants.length > 0 ? videoVariants : undefined,
         durationMs,
-        width: m.width,
-        height: m.height,
+        width,
+        height,
       })
     }
   }
@@ -199,6 +250,7 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
     media,
     quotedTweet,
     hasVideo,
+    possiblySensitive: Boolean(tweet.possibly_sensitive),
     metrics: {
       likes: tweet.likes ?? 0,
       retweets: tweet.retweets ?? 0,
@@ -209,23 +261,37 @@ async function fetchFromFxTwitter(tweetId: string): Promise<TweetData | null> {
 }
 
 /**
- * Unified tweet fetcher with automatic fallback
+ * Unified tweet fetcher with automatic fallback and disk cache
  */
-export async function getTweetData(tweetId: string): Promise<TweetData> {
+export async function getTweetData(tweetId: string, bypassCache = false): Promise<TweetData> {
+  if (!bypassCache) {
+    const cached = getCachedJson<TweetData>(`tweet:${tweetId}`)
+    if (cached) {
+      console.log(`[Cache] HIT tweet metadata: ${tweetId}`)
+      return cached
+    }
+  }
+
   // 1. Try Syndication API first
+  let data: TweetData | null = null
   try {
-    const data = await fetchFromSyndication(tweetId)
-    if (data) return data
+    data = await fetchFromSyndication(tweetId)
   } catch (err: any) {
     console.warn(`[Fetcher] Syndication API failed for ${tweetId}: ${err.message}. Retrying with FxTwitter...`)
   }
 
   // 2. Fallback to FxTwitter
-  try {
-    const data = await fetchFromFxTwitter(tweetId)
-    if (data) return data
-  } catch (err: any) {
-    console.warn(`[Fetcher] FxTwitter API failed for ${tweetId}: ${err.message}`)
+  if (!data) {
+    try {
+      data = await fetchFromFxTwitter(tweetId)
+    } catch (err: any) {
+      console.warn(`[Fetcher] FxTwitter API failed for ${tweetId}: ${err.message}`)
+    }
+  }
+
+  if (data) {
+    setCachedJson(`tweet:${tweetId}`, data)
+    return data
   }
 
   throw new Error(`Could not fetch tweet with ID: ${tweetId}. It may be private or deleted.`)

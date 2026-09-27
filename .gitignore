@@ -5,6 +5,7 @@ data/fonts/*.woff
 data/fonts/*.ttf
 data/emojis/*.svg
 data/settings.json
+data/cache/
 output.png
 test*.png
 .DS_Store

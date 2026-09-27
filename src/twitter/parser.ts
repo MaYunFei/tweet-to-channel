@@ -42,3 +42,25 @@ export function extractTweetId(input: string): string | null {
   const tweets = extractTweetUrls(input)
   return tweets.length > 0 ? tweets[0].id : null
 }
+
+/**
+ * Normalizes Twitter CDN image URL to fetch the original (highest resolution) version.
+ */
+export function toOriginalTwitterImageUrl(url: string): string {
+  if (!url || !url.includes('twimg.com')) return url
+  try {
+    const parsed = new URL(url)
+    if (parsed.searchParams.has('name')) {
+      parsed.searchParams.set('name', 'orig')
+      return parsed.toString()
+    }
+    if (parsed.pathname.match(/\.(jpe?g|png|webp)$/i)) {
+      parsed.searchParams.set('name', 'orig')
+      return parsed.toString()
+    }
+    return url
+  } catch {
+    return url
+  }
+}
+

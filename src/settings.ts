@@ -9,7 +9,10 @@ let currentSettings: BotSettings = {
   renderCard: process.env.RENDER_CARD !== 'false',
   includeSource: process.env.INCLUDE_SOURCE !== 'false',
   includeTag: process.env.INCLUDE_TAG !== 'false',
+  enableTranslation: config.enableTranslation,
+  enableSpoiler: config.enableSpoiler,
   videoMode: config.videoMode,
+  attachPhotos: config.attachPhotos,
   theme: config.theme,
 }
 

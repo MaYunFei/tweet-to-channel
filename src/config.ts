@@ -15,6 +15,14 @@ function parseAdminIds(raw?: string): number[] {
   }
 }
 
+function parseTargetChannels(raw?: string): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
 export const config = {
   // Telegram Bot Token (from @BotFather)
   botToken: process.env.BOT_TOKEN || '',
@@ -22,8 +30,12 @@ export const config = {
   // Whitelisted Telegram User IDs who can use the bot
   adminUserIds: parseAdminIds(process.env.ADMIN_USER_IDS),
 
-  // Target Channel ID or username (e.g. "@my_channel" or "-1001234567890")
-  targetChannelId: process.env.TARGET_CHANNEL_ID || '',
+  // Target Channel IDs or usernames (e.g. "@my_channel" or "-1001234567890", supports comma-separated list)
+  targetChannelIds: parseTargetChannels(process.env.TARGET_CHANNEL_ID),
+
+  get targetChannelId(): string {
+    return this.targetChannelIds[0] || ''
+  },
 
   // Theme for generated tweet card: 'dark' | 'light' | 'dim'
   theme: (process.env.THEME || 'dark') as ThemeMode,
@@ -49,4 +61,19 @@ export const config = {
 
   // Local font cache directory
   fontDir: process.env.FONT_DIR || './data/fonts',
+
+  // Whether to enable bilingual translation by default (free Google Translate)
+  enableTranslation: process.env.ENABLE_TRANSLATION !== 'false',
+
+  // Whether to attach original high-res photos alongside card image (as a media album)
+  attachPhotos: process.env.ATTACH_PHOTOS !== 'false',
+
+  // Whether to automatically blur sensitive/NSFW media with Telegram spoiler (true / false)
+  enableSpoiler: process.env.ENABLE_SPOILER !== 'false',
+
+  // Local media & metadata cache directory
+  cacheDir: process.env.CACHE_DIR || './data/cache',
+
+  // Cache expiration time in hours (default: 24 hours)
+  cacheTtlHours: Number(process.env.CACHE_TTL_HOURS) || 24,
 }

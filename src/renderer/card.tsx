@@ -150,9 +150,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
         width: 600,
         backgroundColor: colors.bg,
         color: colors.text,
-        borderRadius: 24,
         padding: '32px 32px 28px 32px',
-        border: `1px solid ${colors.border}`,
         boxSizing: 'border-box',
         fontFamily: 'Noto Sans SC, sans-serif',
       }}
@@ -231,12 +229,54 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
             fontSize: tweet.text.length < 80 ? 21 : 18,
             lineHeight: 1.55,
             color: colors.text,
-            marginBottom: 18,
+            marginBottom: tweet.translation ? 12 : 18,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}
         >
           {tweet.text}
+        </div>
+      ) : null}
+
+      {/* Tweet Translation (if any) */}
+      {tweet.translation ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: colors.surface,
+            borderRadius: 14,
+            borderLeft: `4px solid ${colors.link}`,
+            padding: '12px 16px',
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              fontSize: 13,
+              fontWeight: 700,
+              color: colors.secondary,
+              marginBottom: 6,
+            }}
+          >
+            <span style={{ marginRight: 6 }}>🌐</span>
+            <span>中文翻译</span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: tweet.translation.length < 80 ? 19 : 16,
+              lineHeight: 1.55,
+              color: colors.text,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {tweet.translation}
+          </div>
         </div>
       ) : null}
 
@@ -369,10 +409,46 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
               lineHeight: 1.45,
               color: colors.text,
               whiteSpace: 'pre-wrap',
+              marginBottom: tweet.quotedTweet.translation ? 8 : 0,
             }}
           >
             {tweet.quotedTweet.text}
           </div>
+          {tweet.quotedTweet.translation && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                borderTop: `1px dashed ${colors.border}`,
+                paddingTop: 8,
+                marginTop: 4,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: colors.secondary,
+                  marginBottom: 4,
+                }}
+              >
+                <span style={{ marginRight: 4 }}>🌐</span>
+                <span>中文翻译</span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 14,
+                  lineHeight: 1.45,
+                  color: colors.text,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {tweet.quotedTweet.translation}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

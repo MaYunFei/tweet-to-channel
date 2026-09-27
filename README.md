@@ -26,8 +26,14 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
 - 🎬 **Smart Video Handling**:
   - **Native Video Mode (`VIDEO_MODE=video`, default)**: Downloads the highest-bitrate MP4 and posts it as a native Telegram video. Because **`BroadcastChannel` natively supports Telegram videos**, your blog will render a playable HTML5 `<video>` player!
   - **Card Mode (`VIDEO_MODE=card`)**: Renders a tweet card with the video's high-res poster, a centered Play icon (`▶`), and a duration badge (e.g. `0:17`).
-  - **Automatic Fallback**: If the video exceeds Telegram's 50MB bot upload limit or download fails, it gracefully falls back to sending the card image.
+  - **Adaptive 50MB Quality Fallback**: If the original 1080p/4K video exceeds Telegram's 50MB bot upload limit, the service automatically steps down through available variants (720p, 480p) to preserve native video delivery.
+  - **Accurate Physical Aspect Ratio**: Inspects MP4 header atoms in milliseconds to determine native width and height, guaranteeing vertical/portrait (9:16) and widescreen (16:9) clips play without stretching or distortion.
 - 🀄 **Full CJK & Crisp Color Emoji Support**: Automatically fetches and caches `Noto Sans SC`, and renders all system emojis (emoticons, flags, symbols) using high-resolution Twemoji SVG vector assets with local disk caching.
+- 🌐 **Smart Bilingual Translation (Zero API Key)**: Built-in free Google Translate integration. Foreign tweets (English, Japanese, etc.) are automatically translated into Simplified Chinese and displayed alongside the original in both the rendered card image and Telegram caption. Chinese tweets are automatically kept as-is.
+- 🖼️ **High-Res Photo Album Bundling (MediaGroup)**: Automatically bundles the rendered card together with 100% full-resolution original photos into a Telegram album. Full-bleed straight corners eliminate dark corner artifacts.
+- 🙈 **Sensitive Media Protection (Telegram Spoiler)**: Automatically flags NSFW / adult media with Telegram's sparkling spoiler blur mask.
+- ⚡ **Persistent Disk Caching**: Tweets, translations, and media buffers are persisted under `./data/cache/` for instant re-processing with `/cache` and `/clearcache` tools.
+- 📢 **Multi-Channel Broadcasting**: `TARGET_CHANNEL_ID` supports comma-separated channel IDs/usernames for synchronized publishing.
 - 📦 **Native Content Transfer Mode (Detach & De-identify)**:
   - Toggle off card rendering to post tweets as **native Telegram media albums, plain text, or native videos**.
   - Strip source links and author info completely to protect original poster privacy and make posts look like native blog entries on BroadcastChannel.
@@ -64,7 +70,7 @@ BOT_TOKEN=123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
 # Admin user IDs allowed to interact with the bot (comma-separated)
 ADMIN_USER_IDS=123456789
 
-# Target Channel ID or username (e.g. @my_channel or -100123456789)
+# Target Channel ID or username (e.g. @my_channel or -100123456789, supports comma-separated list)
 TARGET_CHANNEL_ID=@my_channel
 
 # Theme: 'dark' | 'dim' | 'light'
@@ -84,6 +90,9 @@ Test image generation for any tweet without starting the bot:
 ```bash
 pnpm convert 20 output.png
 pnpm convert https://x.com/elonmusk/status/1234567890 output.png --theme light
+
+# Convert with bilingual translation
+pnpm convert 20 output-trans.png --translate
 ```
 
 ### 4. Run the Telegram Bot
@@ -144,7 +153,7 @@ docker run -d \
 | Tweet Type | Card Mode (Default) | Transfer Mode (Privacy / Native) |
 | :--- | :--- | :--- |
 | **Text Only** | Renders a high-res Twitter card PNG with author info. Caption includes source URL. | **No card image**. Sends clean text message directly. |
-| **Text + 1~4 Photos** | Embeds photos into the card layout. | **No card image**. Downloads original high-res photos and sends as a native Telegram album gallery. |
+| **Text + 1~4 Photos** | Renders Twitter card layout and automatically bundles full-resolution original photos into a Telegram MediaGroup album (no black corner artifacts, swipe to view original photos). | **No card image**. Downloads original high-res photos and sends as a native Telegram album gallery. |
 | **Text + Video** | Posts native MP4, and caption includes `▶️ Video` + original URL + hashtag. | Posts native MP4, caption contains **pure clean text only** (no links, no author, no Twitter branding). |
 
 ### 2. Commands & Control
@@ -153,7 +162,15 @@ docker run -d \
 - Send any tweet URL: Processed according to current global settings.
 - `/anon <url>`: One-shot anonymous transfer (no card, no source link, no hashtag).
 - `/raw <url>`: One-shot native transfer (native media, keeps source link).
-- `/card <url>`: One-shot card rendering.
+- `/card <url>`: One-shot card rendering (with original photos attached).
+- `/cardonly <url>`: One-shot card only (card image without attached photos).
+- `/spoiler <url>`: One-shot spoiler mode (force enable Telegram spoiler blur).
+- `/nospoiler <url>`: One-shot direct mode (force disable spoiler blur).
+- `/zh <url>`: One-shot bilingual translation (force enable Chinese translation).
+- `/notrans <url>`: One-shot raw text (force disable translation).
+- `/cache`: View disk cache statistics (file count and MBs).
+- `/clearcache`: Wipe all media and data disk caches.
+- `/nocache <url>`: Force bypass local cache and re-download fresh data.
 
 ---
 

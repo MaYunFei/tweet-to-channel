@@ -6,6 +6,7 @@ import { config } from '../config.js'
 import { loadFonts } from './fonts.js'
 import { getEmojiAsset } from './emoji.js'
 import { TweetCard } from './card.js'
+import { getCachedBuffer, setCachedBuffer } from '../cache.js'
 import type { TweetData, RenderOptions } from '../types.js'
 
 let proxyDispatcher: ProxyAgent | undefined
@@ -14,11 +15,35 @@ if (config.proxyUrl) {
 }
 
 /**
+ * Normalizes text to replace characters that are missing in Noto Sans SC (such as box-drawing characters and Japanese IME symbols)
+ * with their visually identical CJK-supported counterparts.
+ */
+export function normalizeTextForCard(text?: string | null): string {
+  if (!text) return ''
+  return text
+    // Box-drawing vertical bars and Japanese vertical separators (e.g. │ U+2502) -> Fullwidth vertical line (｜ U+FF5C)
+    .replace(/[│┃┆┇┊┋∣❘❙❚]/g, '｜')
+    // Box-drawing horizontal lines and horizontal bars (e.g. ─ U+2500, ― U+2015) -> Em dash (— U+2014)
+    .replace(/[─━┄┅┈┉―]/g, '—')
+    // Japanese wave dash (〜 U+301C) -> Fullwidth tilde (～ U+FF5E)
+    .replace(/〜/g, '～')
+    // Double vertical lines -> Double fullwidth vertical line
+    .replace(/[‖∥]/g, '｜｜')
+}
+
+/**
  * Fetch remote image and convert to Base64 data URL to satisfy Satori's local-only constraint.
  */
 async function toDataUrl(url?: string): Promise<string> {
   if (!url) return ''
   try {
+    const cached = getCachedBuffer(url)
+    if (cached) {
+      const ext = url.split('?')[0].split('.').pop()?.toLowerCase() || 'png'
+      const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png'
+      return `data:${mime};base64,${cached.toString('base64')}`
+    }
+
     const fetchOptions: RequestInit & { dispatcher?: any } = {
       signal: AbortSignal.timeout(10_000),
       headers: {
@@ -33,8 +58,9 @@ async function toDataUrl(url?: string): Promise<string> {
     if (!res.ok) return ''
     const contentType = res.headers.get('content-type') || 'image/png'
     const arrayBuffer = await res.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString('base64')
-    return `data:${contentType};base64,${base64}`
+    const buf = Buffer.from(arrayBuffer)
+    setCachedBuffer(url, buf)
+    return `data:${contentType};base64,${buf.toString('base64')}`
   } catch (err) {
     console.warn(`[Render] Failed to fetch image ${url}:`, (err as Error).message)
     return ''
@@ -53,8 +79,11 @@ async function prepareTweetImages(tweet: TweetData): Promise<TweetData> {
 
   const cloned: TweetData = {
     ...tweet,
+    text: normalizeTextForCard(tweet.text),
+    translation: tweet.translation ? normalizeTextForCard(tweet.translation) : tweet.translation,
     author: {
       ...tweet.author,
+      name: normalizeTextForCard(tweet.author.name),
       avatarUrl: avatarDataUrl || tweet.author.avatarUrl,
     },
     media: tweet.media.map((m, idx) => ({
@@ -66,8 +95,13 @@ async function prepareTweetImages(tweet: TweetData): Promise<TweetData> {
   if (cloned.quotedTweet) {
     cloned.quotedTweet = {
       ...cloned.quotedTweet,
+      text: normalizeTextForCard(cloned.quotedTweet.text),
+      translation: cloned.quotedTweet.translation
+        ? normalizeTextForCard(cloned.quotedTweet.translation)
+        : cloned.quotedTweet.translation,
       author: {
         ...cloned.quotedTweet.author,
+        name: normalizeTextForCard(cloned.quotedTweet.author.name),
         avatarUrl: quotedAvatarDataUrl || cloned.quotedTweet.author.avatarUrl,
       },
     }
@@ -105,7 +139,7 @@ export async function renderTweetToPng(
       style: f.style,
     })),
     loadAdditionalAsset: async (languageCode, segment) => {
-      if (languageCode === 'emoji') {
+      if (languageCode === 'emoji' || languageCode === 'symbol') {
         const asset = await getEmojiAsset(segment)
         if (asset) return asset
       }

@@ -27,7 +27,12 @@ It is specifically designed to complement **[BroadcastChannel](https://github.co
 - **Fonts**:
   - `Noto Sans SC` (Simplified Chinese + English + Symbols) automatically cached in `./data/fonts/`.
 - **Global Proxy**:
-  - Handled via `undici.setGlobalDispatcher(new ProxyAgent(PROXY_URL))`. When `PROXY_URL` is set, all HTTP/HTTPS requests (bot polling, tweet fetching, font download, media prefetching) are routed automatically.
+  - Handled via `undici.setGlobalDispatcher(new ProxyAgent(PROXY_URL))`. When `PROXY_URL` is set, all HTTP/HTTPS requests (bot polling, tweet fetching, font download, media prefetching, translation) are routed automatically.
+
+- **Bilingual Translation**:
+  - Built-in zero-API-key Google Translate integration (`translate.googleapis.com/translate_a/single?client=gtx`).
+  - Automatically translates non-Chinese tweets into Simplified Chinese, rendering bilingual text blocks on the card image and in Telegram captions.
+  - Can be toggled globally via `/settings` or `ENABLE_TRANSLATION=false`, or per-command via `/zh` and `/notrans`.
 
 - **Video Handling (`VIDEO_MODE`)**:
   - `video` (default): Downloads the highest-bitrate MP4 and uploads it using Telegram's `sendVideo`.
@@ -62,6 +67,8 @@ tweet-to-channel/
 │   ├── twitter/
 │   │   ├── parser.ts          # URL / ID extraction and normalization
 │   │   └── fetcher.ts         # Syndication + FxTwitter dual fetcher
+│   ├── translate/
+│   │   └── google.ts          # Free Google Translate API integration
 │   ├── renderer/
 │   │   ├── fonts.ts           # Noto Sans SC auto-download and disk cache
 │   │   ├── emoji.ts           # Twemoji codepoint parser + disk cache
