@@ -1,7 +1,7 @@
 {
   "name": "tweet-to-channel",
   "version": "1.0.0",
-  "description": "",
+  "description": "Lightweight service & Telegram Bot to convert Twitter/X posts to cards, native videos, and albums, published to Telegram channels.",
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

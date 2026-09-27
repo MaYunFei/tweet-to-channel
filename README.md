@@ -15,7 +15,7 @@ When pairing Telegram channels with microblogging engines like **[BroadcastChann
 3. **Native Telegram photo benefits**: When posting native images (`sendPhoto`) with captions, `BroadcastChannel` provides built-in responsive galleries, lightbox modals, and serves images smoothly through Telegram CDN.
 
 **The Solution:**
-Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-style card PNG in milliseconds -> Posts directly to your channel with the original link in caption -> Instantly synced to your blog!
+Share any tweet to your private Telegram Bot -> Bot fetches and processes it in milliseconds (crisp card image, native MP4 video, photo album, or privacy-stripped text) -> Automatically publishes directly to your target Telegram Channel(s) -> Instantly synced to your blog!
 
 ---
 
@@ -40,7 +40,7 @@ Share any tweet to your private Telegram Bot -> Bot generates a crisp, native-st
 - ⚙️ **Interactive Telegram Settings Panel**: Use `/settings` to toggle modes, privacy, tags, video handling, and themes with inline keyboard buttons in real time.
 - 🛡️ **Whitelist Protection**: Configurable `ADMIN_USER_IDS` to restrict bot usage to you alone.
 - 🌐 **Proxy Ready**: Built-in HTTP / SOCKS5 proxy support via `undici` for environments with network restrictions.
-- 🛠️ **Built-in CLI**: Quickly test and export tweet images locally via `pnpm convert`.
+- 🛠️ **Built-in CLI**: Quickly test card rendering and bilingual translation locally via `pnpm convert`.
 - 🐳 **Automated Multi-arch Docker**: Built-in GitHub Actions CI/CD automatically builds and pushes `linux/amd64` and `linux/arm64` images to GitHub Container Registry (GHCR) on every push or release. Deploy without compiling locally!
 
 ---
