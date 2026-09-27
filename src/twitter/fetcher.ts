@@ -104,9 +104,23 @@ function parseSyndicationTweet(raw: Record<string, any>, tweetId: string): Tweet
   }
 
   // Expand URLs and strip trailing photo/video t.co URLs
-  let text = raw.text || raw.full_text || ''
-  if (raw.entities?.urls && Array.isArray(raw.entities.urls)) {
-    for (const u of raw.entities.urls) {
+  // Prioritize Note Tweet (X Premium / Long-form text) if available
+  let text =
+    raw.note_tweet?.note_tweet_results?.result?.text ||
+    raw.note_tweet?.text ||
+    raw.text ||
+    raw.full_text ||
+    ''
+
+  const noteUrls = raw.note_tweet?.note_tweet_results?.result?.entity_set?.urls
+  const rawUrls = raw.entities?.urls
+  const allUrls = [
+    ...(Array.isArray(noteUrls) ? noteUrls : []),
+    ...(Array.isArray(rawUrls) ? rawUrls : []),
+  ]
+
+  if (allUrls.length > 0) {
+    for (const u of allUrls) {
       if (u.url && (u.expanded_url || u.display_url)) {
         text = text.replace(u.url, u.expanded_url || u.display_url)
       }

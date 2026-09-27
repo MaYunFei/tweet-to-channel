@@ -15,7 +15,19 @@ if (config.proxyUrl) {
   setGlobalDispatcher(proxyDispatcher)
 }
 
-export function buildCaption(tweet: TweetData, settings: BotSettings): string {
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export interface CaptionResult {
+  caption: string
+  isTruncated: boolean
+}
+
+export function buildCaption(tweet: TweetData, settings: BotSettings): CaptionResult {
   const parts: string[] = []
 
   if (settings.includeSource) {
@@ -35,16 +47,104 @@ export function buildCaption(tweet: TweetData, settings: BotSettings): string {
   const suffix = parts.length > 0 ? `\n\n${parts.join('\n')}` : ''
   const maxBodyLen = 1024 - suffix.length - 5
 
-  let body = tweet.text
+  let fullBody = tweet.text
   if (settings.enableTranslation && tweet.translation) {
-    body = `${tweet.text}\n\n🌐 译文：\n${tweet.translation}`
+    fullBody = `${tweet.text}\n\n🌐 译文：\n${tweet.translation}`
   }
 
-  if (body.length > maxBodyLen) {
-    body = body.slice(0, maxBodyLen - 3) + '...'
+  const isTruncated = fullBody.length > maxBodyLen
+  let body = fullBody
+  if (isTruncated) {
+    body = fullBody.slice(0, maxBodyLen - 3) + '...'
   }
 
-  return `${body}${suffix}`.trim()
+  return {
+    caption: `${body}${suffix}`.trim(),
+    isTruncated,
+  }
+}
+
+export function buildFullTextMessage(tweet: TweetData, settings: BotSettings): string {
+  const parts: string[] = []
+
+  if (settings.enableTranslation && tweet.translation) {
+    parts.push(
+      `📖 <b>推文全文与译文</b>：\n\n${escapeHtml(tweet.text)}\n\n🌐 <b>中文译文：</b>\n${escapeHtml(tweet.translation)}`
+    )
+  } else {
+    parts.push(`📖 <b>推文全文</b>：\n\n${escapeHtml(tweet.text)}`)
+  }
+
+  const footers: string[] = []
+  if (settings.includeSource) {
+    footers.push(`🔗 原文：${tweet.url}`)
+  }
+  if (settings.includeTag && config.tag) {
+    footers.push(config.tag)
+  }
+  if (footers.length > 0) {
+    parts.push(footers.join('\n'))
+  }
+
+  return parts.join('\n\n')
+}
+
+export async function sendLongMessage(
+  bot: Bot,
+  chatId: string | number,
+  htmlText: string
+): Promise<void> {
+  const MAX_CHUNK = 4000
+  if (htmlText.length <= MAX_CHUNK) {
+    await bot.api.sendMessage(chatId, htmlText, { parse_mode: 'HTML' })
+    return
+  }
+
+  let remaining = htmlText
+  while (remaining.length > 0) {
+    if (remaining.length <= MAX_CHUNK) {
+      await bot.api.sendMessage(chatId, remaining, { parse_mode: 'HTML' })
+      break
+    }
+    let splitIdx = remaining.lastIndexOf('\n', MAX_CHUNK)
+    if (splitIdx === -1 || splitIdx < 1000) {
+      splitIdx = MAX_CHUNK
+    }
+    const chunk = remaining.slice(0, splitIdx).trim()
+    remaining = remaining.slice(splitIdx).trim()
+    if (chunk) {
+      await bot.api.sendMessage(chatId, chunk, { parse_mode: 'HTML' })
+    }
+  }
+}
+
+async function sendFollowUpFullTextIfNeeded(
+  bot: Bot,
+  tweet: TweetData,
+  settings: BotSettings,
+  isTruncated: boolean,
+  channelIds: string[],
+  adminIds: number[]
+): Promise<void> {
+  if (!isTruncated) return
+
+  const fullTextMsg = buildFullTextMessage(tweet, settings)
+
+  for (const chId of channelIds) {
+    try {
+      await sendLongMessage(bot, chId, fullTextMsg)
+    } catch (err: any) {
+      console.error(`[Processor] Failed to send full text to channel ${chId}:`, err.message)
+    }
+  }
+
+  for (const adminId of adminIds) {
+    try {
+      await sendLongMessage(bot, adminId, fullTextMsg)
+    } catch (err: any) {
+      console.warn(`[Processor] Failed to send full text to admin ${adminId}:`, err.message)
+    }
+  }
 }
 
 /**
@@ -245,7 +345,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
       }
     }
 
-    const caption = buildCaption(tweet, effectiveSettings)
+    const { caption, isTruncated } = buildCaption(tweet, effectiveSettings)
     const shouldSpoiler = job.forceSpoiler !== undefined
       ? job.forceSpoiler
       : (effectiveSettings.enableSpoiler && Boolean(tweet.possiblySensitive))
@@ -328,6 +428,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
             }
           }
 
+          // Follow up with complete text message if truncated
+          await sendFollowUpFullTextIfNeeded(bot, tweet, effectiveSettings, isTruncated, config.targetChannelIds, adminChatIds)
+
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
@@ -374,6 +477,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
             }
           }
 
+          // Follow up with complete text message if truncated
+          await sendFollowUpFullTextIfNeeded(bot, tweet, effectiveSettings, isTruncated, config.targetChannelIds, adminChatIds)
+
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
@@ -415,6 +521,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
             }
           }
 
+          // Follow up with complete text message if truncated
+          await sendFollowUpFullTextIfNeeded(bot, tweet, effectiveSettings, isTruncated, config.targetChannelIds, adminChatIds)
+
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
@@ -422,11 +531,13 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
         }
       }
 
-      // 3. Pure text tweet
+      // 3. Pure text tweet (send full content directly without truncation)
       let channelSent = false
+      const fullTextMsg = buildFullTextMessage(tweet, effectiveSettings)
+
       for (const chId of config.targetChannelIds) {
         try {
-          await bot.api.sendMessage(chId, caption)
+          await sendLongMessage(bot, chId, fullTextMsg)
           channelSent = true
         } catch (err: any) {
           console.error(`[Processor] Failed to send message to ${chId}:`, err.message)
@@ -437,10 +548,13 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
       }
 
       if (adminChatIds.length > 0) {
-        const adminCaption = getAdminCaption(channelSent)
+        const adminPrefix = job.source === 'api'
+          ? (channelSent ? `✅ [快捷指令] 已发布到频道 ${channelsStr}\n\n` : `✅ [快捷指令] 已处理推文\n\n`)
+          : (channelSent ? `✅ 已发布到频道 ${channelsStr}\n\n` : '')
+
         for (const adminId of adminChatIds) {
           try {
-            await bot.api.sendMessage(adminId, adminCaption)
+            await sendLongMessage(bot, adminId, adminPrefix ? `${adminPrefix}${fullTextMsg}` : fullTextMsg)
           } catch (e: any) {
             console.warn(`[Processor] Failed to send text archive to admin ${adminId}:`, e.message)
           }
@@ -581,6 +695,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
         }
       }
     }
+
+    // Follow up with complete text message if truncated
+    await sendFollowUpFullTextIfNeeded(bot, tweet, effectiveSettings, isTruncated, config.targetChannelIds, adminChatIds)
 
     if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
       await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})

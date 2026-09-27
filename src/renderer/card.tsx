@@ -142,6 +142,20 @@ export interface TweetCardProps {
 export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) => {
   const colors = THEMES[theme] || THEMES.dark
 
+  // Guard against extreme length for Satori / Telegram image dimension limit
+  const MAX_CARD_TEXT_LEN = 1800
+  const isTextTooLong = tweet.text && tweet.text.length > MAX_CARD_TEXT_LEN
+  const cardText = isTextTooLong
+    ? tweet.text.slice(0, MAX_CARD_TEXT_LEN) + '\n\n... (长文已折叠，全文请见下方消息)'
+    : tweet.text
+
+  const isTransTooLong = Boolean(tweet.translation && tweet.translation.length > MAX_CARD_TEXT_LEN)
+  const cardTranslation = tweet.translation
+    ? (isTransTooLong
+        ? tweet.translation.slice(0, MAX_CARD_TEXT_LEN) + '\n\n... (长文已折叠，全文请见下方消息)'
+        : tweet.translation)
+    : null
+
   return (
     <div
       style={{
@@ -221,25 +235,25 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
       </div>
 
       {/* Tweet Body Text */}
-      {tweet.text ? (
+      {cardText ? (
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            fontSize: tweet.text.length < 80 ? 21 : 18,
+            fontSize: cardText.length < 80 ? 21 : 18,
             lineHeight: 1.55,
             color: colors.text,
-            marginBottom: tweet.translation ? 12 : 18,
+            marginBottom: cardTranslation ? 12 : 18,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}
         >
-          {tweet.text}
+          {cardText}
         </div>
       ) : null}
 
       {/* Tweet Translation (if any) */}
-      {tweet.translation ? (
+      {cardTranslation ? (
         <div
           style={{
             display: 'flex',
@@ -268,14 +282,14 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
           <div
             style={{
               display: 'flex',
-              fontSize: tweet.translation.length < 80 ? 19 : 16,
+              fontSize: cardTranslation.length < 80 ? 19 : 16,
               lineHeight: 1.55,
               color: colors.text,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}
           >
-            {tweet.translation}
+            {cardTranslation}
           </div>
         </div>
       ) : null}

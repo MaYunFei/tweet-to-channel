@@ -30,6 +30,9 @@ Share any tweet to your private Telegram Bot -> Bot fetches and processes it in 
   - **Accurate Physical Aspect Ratio**: Inspects MP4 header atoms in milliseconds to determine native width and height, guaranteeing vertical/portrait (9:16) and widescreen (16:9) clips play without stretching or distortion.
 - 🀄 **Full CJK & Crisp Color Emoji Support**: Automatically fetches and caches `Noto Sans SC`, and renders all system emojis (emoticons, flags, symbols) using high-resolution Twemoji SVG vector assets with local disk caching.
 - 🌐 **Smart Bilingual Translation (Zero API Key)**: Built-in free Google Translate integration. Foreign tweets (English, Japanese, etc.) are automatically translated into Simplified Chinese and displayed alongside the original in both the rendered card image and Telegram caption. Chinese tweets are automatically kept as-is.
+- 📖 **Full Long-Tweet Support (Zero Truncation)**:
+  - Automatically parses full content from X (Twitter) Note Tweets (X Premium long-form articles), removing the 280-character ceiling.
+  - While Telegram media captions are strictly capped at 1024 characters, the bot automatically follows up with a complete bilingual text message (`📖 推文全文与译文`) whenever a tweet or translation exceeds the caption limit, ensuring zero lost paragraphs.
 - 🖼️ **High-Res Photo Album Bundling (MediaGroup)**: Automatically bundles the rendered card together with 100% full-resolution original photos into a Telegram album. Full-bleed straight corners eliminate dark corner artifacts.
 - 🙈 **Sensitive Media Protection (Telegram Spoiler)**: Automatically flags NSFW / adult media with Telegram's sparkling spoiler blur mask.
 - ⚡ **Persistent Disk Caching**: Tweets, translations, and media buffers are persisted under `./data/cache/` for instant re-processing with `/cache` and `/clearcache` tools.
