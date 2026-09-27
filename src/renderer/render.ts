@@ -125,9 +125,12 @@ export async function renderTweetToPng(
     prepareTweetImages(tweet),
   ])
 
+  const fullText = options.fullText !== undefined ? options.fullText : false
+
   const cardElement = React.createElement(TweetCard, {
     tweet: preparedTweet,
     theme,
+    fullText,
   })
 
   const svg = await satori(cardElement, {

@@ -66,6 +66,19 @@ export function createBot(): Bot {
     },
   })
 
+  // Register command list in Telegram menu
+  bot.api
+    .setMyCommands([
+      { command: 'pic', description: '生成超清卡片长图 (回传不转发)' },
+      { command: 'settings', description: '打开控制台设置面板' },
+      { command: 'card', description: '强制卡片渲染模式' },
+      { command: 'raw', description: '原生图文/视频搬运模式' },
+      { command: 'anon', description: '匿名彻底脱敏搬运' },
+      { command: 'cache', description: '查看本地媒体缓存' },
+      { command: 'help', description: '查看详细使用帮助' },
+    ])
+    .catch(() => {})
+
   // Start / Help command
   bot.command(['start', 'help'], async ctx => {
     const userId = ctx.from?.id
@@ -76,6 +89,7 @@ export function createBot(): Bot {
       '',
       '📌 <b>使用方法：</b>',
       '• <b>日常模式:</b> 直接私聊发送推特链接（按当前全局设置处理）。',
+      '• <b>/pic &lt;链接&gt;:</b> 生成超清卡片长图（不转发频道，直接回传高清预览图+无损原图文件，长文完整展示，方便分享）。支持 <code>/pic zh</code> (强制双语) 或 <code>/pic notrans</code> (纯原文)。',
       '• <b>/anon &lt;链接&gt;:</b> 快捷匿名搬运（强制不生成推特卡片、不带来源、不带标签，彻底脱敏）。',
       '• <b>/raw &lt;链接&gt;:</b> 快捷原生搬运（以原生图文/相册/视频发布，保留原文链接）。',
       '• <b>/card &lt;链接&gt;:</b> 快捷卡片模式（强制渲染推特样式长图）。',
@@ -199,8 +213,17 @@ export function createBot(): Bot {
     let effectiveSettings = getSettings()
     let forceSpoiler: boolean | undefined
     let bypassCache = false
+    let directOnly = false
 
-    if (text.startsWith('/anon')) {
+    if (text.startsWith('/pic') || text.startsWith('/img')) {
+      directOnly = true
+      effectiveSettings = { ...effectiveSettings, renderCard: true }
+      if (text.match(/^\/(?:pic|img)\s+zh(?:\s+|$)/i)) {
+        effectiveSettings = { ...effectiveSettings, enableTranslation: true }
+      } else if (text.match(/^\/(?:pic|img)\s+notrans(?:\s+|$)/i)) {
+        effectiveSettings = { ...effectiveSettings, enableTranslation: false }
+      }
+    } else if (text.startsWith('/anon')) {
       effectiveSettings = { ...effectiveSettings, renderCard: false, includeSource: false, includeTag: false }
     } else if (text.startsWith('/raw')) {
       effectiveSettings = { ...effectiveSettings, renderCard: false }
@@ -220,8 +243,24 @@ export function createBot(): Bot {
       bypassCache = true
     }
 
-    const extracted = extractTweetUrls(text)
+    let targetText = text
+    if (
+      ctx.message.reply_to_message &&
+      'text' in ctx.message.reply_to_message &&
+      ctx.message.reply_to_message.text
+    ) {
+      targetText = `${text} ${ctx.message.reply_to_message.text}`
+    }
+
+    const extracted = extractTweetUrls(targetText)
     if (extracted.length === 0) {
+      if (text.startsWith('/pic') || text.startsWith('/img')) {
+        await ctx.reply(
+          '❓ 请在 <code>/pic</code> 后附带推特链接，或直接回复包含推特链接的消息。例如：\n<code>/pic https://x.com/...</code>',
+          { parse_mode: 'HTML' }
+        )
+        return
+      }
       if (!text.startsWith('/')) {
         await ctx.reply('❓ 未在消息中识别到推特链接。直接发送推特链接或使用 /help 查看帮助。')
       }
@@ -241,6 +280,7 @@ export function createBot(): Bot {
           settings: effectiveSettings,
           forceSpoiler,
           bypassCache,
+          directOnly,
         })
       )
     }

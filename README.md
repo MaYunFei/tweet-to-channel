@@ -162,7 +162,8 @@ docker run -d \
 ### 2. Commands & Control
 
 - `/settings`: Opens the interactive settings keyboard in Telegram to toggle features in real time.
-- Send any tweet URL: Processed according to current global settings.
+- Send any tweet URL: Processed according to current global settings and published to target channel.
+- `/pic <url>` or `/img <url>`: **Generate ultra-clear card image (no forwarding to channel)**. Returns both an instant high-res photo preview and a 100% lossless original PNG document. Displays full text for long articles/tweets. Perfect for saving to your photo roll and sharing with others. Supports replying to tweet messages or appending `/pic zh` / `/pic notrans`.
 - `/anon <url>`: One-shot anonymous transfer (no card, no source link, no hashtag).
 - `/raw <url>`: One-shot native transfer (native media, keeps source link).
 - `/card <url>`: One-shot card rendering (with original photos attached).

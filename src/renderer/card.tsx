@@ -137,24 +137,35 @@ const VideoOverlay = ({ durationMs }: { durationMs?: number }) => (
 export interface TweetCardProps {
   tweet: TweetData
   theme?: ThemeMode
+  fullText?: boolean
 }
 
-export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) => {
+export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark', fullText = false }) => {
   const colors = THEMES[theme] || THEMES.dark
 
   // Guard against extreme length for Satori / Telegram image dimension limit
-  const MAX_CARD_TEXT_LEN = 1800
-  const isTextTooLong = tweet.text && tweet.text.length > MAX_CARD_TEXT_LEN
+  // When fullText is true, allows full-length articles (up to 25,000 characters safety guard)
+  const maxLen = fullText ? 25000 : 1800
+  const isTextTooLong = tweet.text && tweet.text.length > maxLen
   const cardText = isTextTooLong
-    ? tweet.text.slice(0, MAX_CARD_TEXT_LEN) + '\n\n... (长文已折叠，全文请见下方消息)'
+    ? tweet.text.slice(0, maxLen) + (fullText ? '\n\n... (推文内容超长已截断)' : '\n\n... (长文已折叠，全文请见下方消息)')
     : tweet.text
 
-  const isTransTooLong = Boolean(tweet.translation && tweet.translation.length > MAX_CARD_TEXT_LEN)
+  const isTransTooLong = Boolean(tweet.translation && tweet.translation.length > maxLen)
   const cardTranslation = tweet.translation
     ? (isTransTooLong
-        ? tweet.translation.slice(0, MAX_CARD_TEXT_LEN) + '\n\n... (长文已折叠，全文请见下方消息)'
+        ? tweet.translation.slice(0, maxLen) + (fullText ? '\n\n... (译文超长已截断)' : '\n\n... (长文已折叠，全文请见下方消息)')
         : tweet.translation)
     : null
+
+  // Adaptive typography for long articles vs short tweets
+  const isLongText = Boolean(cardText && cardText.length > 800)
+  const bodyFontSize = !cardText ? 18 : cardText.length < 80 ? 21 : isLongText ? 16 : 18
+  const bodyLineHeight = isLongText ? 1.6 : 1.55
+
+  const isLongTrans = Boolean(cardTranslation && cardTranslation.length > 800)
+  const transFontSize = !cardTranslation ? 16 : cardTranslation.length < 80 ? 19 : isLongTrans ? 15 : 16
+  const transLineHeight = isLongTrans ? 1.6 : 1.55
 
   return (
     <div
@@ -240,8 +251,8 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
           style={{
             display: 'flex',
             flexDirection: 'column',
-            fontSize: cardText.length < 80 ? 21 : 18,
-            lineHeight: 1.55,
+            fontSize: bodyFontSize,
+            lineHeight: bodyLineHeight,
             color: colors.text,
             marginBottom: cardTranslation ? 12 : 18,
             whiteSpace: 'pre-wrap',
@@ -282,8 +293,8 @@ export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark' }) =
           <div
             style={{
               display: 'flex',
-              fontSize: cardTranslation.length < 80 ? 19 : 16,
-              lineHeight: 1.55,
+              fontSize: transFontSize,
+              lineHeight: transLineHeight,
               color: colors.text,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',

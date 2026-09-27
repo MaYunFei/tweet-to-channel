@@ -288,6 +288,7 @@ export interface TweetJob {
   settings?: BotSettings
   forceSpoiler?: boolean
   bypassCache?: boolean
+  directOnly?: boolean
 }
 
 /**
@@ -371,6 +372,46 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
       return isChannelSent
         ? `✅ 已发布到频道 ${channelsStr}\n\n${caption}`
         : caption
+    }
+
+    // =========================================================================
+    // BRANCH 0: 私聊回传超清卡片长图 (directOnly === true, 对应 /pic 或 /img 命令)
+    // =========================================================================
+    if (job.directOnly) {
+      await updateStatus(`⏳ 正在生成超清卡片长图 (${job.tweetId})...`)
+      const pngBuffer = await renderTweetToPng(tweet, {
+        theme: effectiveSettings.theme,
+        scale: 2.5,
+        fullText: true,
+      })
+
+      const targetChatId = job.telegramContext?.chatId || (config.adminUserIds.length > 0 ? config.adminUserIds[0] : null)
+      if (targetChatId) {
+        let photoSent = false
+        try {
+          await bot.api.sendPhoto(targetChatId, new InputFile(pngBuffer, `tweet-${job.tweetId}.png`), {
+            caption,
+            has_spoiler: shouldSpoiler,
+          })
+          photoSent = true
+        } catch (photoErr: any) {
+          console.warn(`[Processor] sendPhoto failed for ${job.tweetId} (will send as document):`, photoErr.message)
+        }
+
+        const docCaption = photoSent
+          ? '📄 <b>无损原图文件</b> (100% 原始画质，未压缩)'
+          : `📄 <b>无损原图文件</b> (长文卡片高度超出照片限制，已发送无损原图)\n\n${caption}`
+
+        await bot.api.sendDocument(targetChatId, new InputFile(pngBuffer, `tweet-${job.tweetId}-original.png`), {
+          caption: docCaption,
+          parse_mode: 'HTML',
+        })
+      }
+
+      if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
+        await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
+      }
+      return
     }
 
     // =========================================================================

@@ -55,7 +55,7 @@ async function main() {
   }
 
   console.log(`[CLI] Rendering to image (${theme} mode)...`)
-  const pngBuffer = await renderTweetToPng(tweet, { theme, scale: 2 })
+  const pngBuffer = await renderTweetToPng(tweet, { theme, scale: 2, fullText: true })
 
   const resolvedPath = path.resolve(process.cwd(), outputPath)
   fs.writeFileSync(resolvedPath, pngBuffer)

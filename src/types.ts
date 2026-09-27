@@ -60,4 +60,5 @@ export interface RenderOptions {
   theme?: ThemeMode
   scale?: number
   showTranslation?: boolean
+  fullText?: boolean
 }
