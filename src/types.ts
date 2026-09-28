@@ -40,6 +40,8 @@ export interface TweetData {
   metrics: TweetMetrics
   hasVideo?: boolean
   possiblySensitive?: boolean
+  isTruncated?: boolean
+  isNoteTweet?: boolean
 }
 
 export type ThemeMode = 'light' | 'dark' | 'dim'
