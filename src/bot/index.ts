@@ -89,7 +89,7 @@ export function createBot(): Bot {
       '',
       '📌 <b>使用方法：</b>',
       '• <b>日常模式:</b> 直接私聊发送推特链接（按当前全局设置处理）。',
-      '• <b>/pic &lt;链接&gt;:</b> 生成超清卡片长图（不转发频道，直接回传高清预览图+无损原图文件，长文完整展示，方便分享）。支持 <code>/pic zh</code> (强制双语) 或 <code>/pic notrans</code> (纯原文)。',
+      '• <b>/pic &lt;链接&gt;:</b> 生成超清卡片长图（长文完整无截断，若配置频道会自动同步发布，并私聊回传高清预览图+无损原图文件）。支持 <code>/pic zh</code> (强制双语) 或 <code>/pic notrans</code> (纯原文)。',
       '• <b>/anon &lt;链接&gt;:</b> 快捷匿名搬运（强制不生成推特卡片、不带来源、不带标签，彻底脱敏）。',
       '• <b>/raw &lt;链接&gt;:</b> 快捷原生搬运（以原生图文/相册/视频发布，保留原文链接）。',
       '• <b>/card &lt;链接&gt;:</b> 快捷卡片模式（强制渲染推特样式长图）。',
@@ -194,9 +194,10 @@ export function createBot(): Bot {
     await ctx.answerCallbackQuery({ text: '✅ 设置已更新！' })
   })
 
-  // Message handler
-  bot.on('message:text', async ctx => {
-    const userId = ctx.from.id
+  // Common handler for text messages and commands
+  const handleIncomingMessage = async (ctx: any) => {
+    const userId = ctx.from?.id
+    if (!userId) return
 
     // Check whitelist
     if (config.adminUserIds.length > 0 && !config.adminUserIds.includes(userId)) {
@@ -207,7 +208,8 @@ export function createBot(): Bot {
       return
     }
 
-    const text = ctx.message.text.trim()
+    const text = (ctx.message?.text || '').trim()
+    if (!text) return
 
     // Determine settings for this execution (support per-message override prefixes)
     let effectiveSettings = getSettings()
@@ -218,9 +220,9 @@ export function createBot(): Bot {
     if (text.startsWith('/pic') || text.startsWith('/img')) {
       directOnly = true
       effectiveSettings = { ...effectiveSettings, renderCard: true }
-      if (text.match(/^\/(?:pic|img)\s+zh(?:\s+|$)/i)) {
+      if (text.match(/^\/(?:pic|img)(?:@\w+)?\s+zh(?:\s+|$)/i)) {
         effectiveSettings = { ...effectiveSettings, enableTranslation: true }
-      } else if (text.match(/^\/(?:pic|img)\s+notrans(?:\s+|$)/i)) {
+      } else if (text.match(/^\/(?:pic|img)(?:@\w+)?\s+notrans(?:\s+|$)/i)) {
         effectiveSettings = { ...effectiveSettings, enableTranslation: false }
       }
     } else if (text.startsWith('/anon')) {
@@ -284,7 +286,16 @@ export function createBot(): Bot {
         })
       )
     }
-  })
+  }
+
+  // Register command handlers explicitly so Telegram Group Privacy mode delivers them
+  bot.command(
+    ['pic', 'img', 'card', 'cardonly', 'raw', 'anon', 'zh', 'trans', 'notrans', 'spoiler', 'nospoiler', 'nocache', 'refresh'],
+    handleIncomingMessage
+  )
+
+  // Message handler for standard direct URLs
+  bot.on('message:text', handleIncomingMessage)
 
   return bot
 }

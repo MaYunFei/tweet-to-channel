@@ -140,6 +140,6 @@ tweet-to-channel/
 5. **Package Management**:
    - Uses `pnpm v11+`. Any native build requirements (like `esbuild` or `@resvg/resvg-js`) are declared in `pnpm-workspace.yaml` under `allowBuilds`.
 
-6. **Direct Card Image Mode (`/pic`, `/img`)**:
-   - Skips channel publishing and delivers directly to the user in private chat as both a 2.5x high-res photo (`sendPhoto`) and an uncompressed document (`sendDocument`).
+6. **Ultra-Clear Card Image Mode (`/pic`, `/img`)**:
+   - Publishes the full-text card to target channels (if configured), and delivers directly to the user in private chat as both a 2.5x high-res photo (`sendPhoto`) and an uncompressed document (`sendDocument`).
    - Renders with `fullText: true` to avoid folding long-form Note Tweets/articles. If image dimensions exceed Telegram's photo limit (width + height > 10,000px), automatically falls back gracefully to document delivery.

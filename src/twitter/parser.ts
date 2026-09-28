@@ -1,4 +1,4 @@
-const TWEET_URL_REGEX =
+const TWEET_URL_PATTERN =
   /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com|fixupx\.com)\/[a-zA-Z0-9_]+\/status(?:es)?\/(\d+)/gi
 
 const STATUS_ID_REGEX = /^\d{1,25}$/
@@ -20,8 +20,9 @@ export function extractTweetUrls(text: string): ExtractedTweet[] {
     return [{ id: trimmed, url: `https://x.com/i/status/${trimmed}` }]
   }
 
-  let match: RegExpExecArray | null
-  while ((match = TWEET_URL_REGEX.exec(text)) !== null) {
+  // Create a new regex instance for each execution to prevent lastIndex state pollution
+  const matches = text.matchAll(new RegExp(TWEET_URL_PATTERN.source, 'gi'))
+  for (const match of matches) {
     const id = match[1]
     if (!seen.has(id)) {
       seen.add(id)

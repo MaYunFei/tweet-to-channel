@@ -375,7 +375,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
     }
 
     // =========================================================================
-    // BRANCH 0: 私聊回传超清卡片长图 (directOnly === true, 对应 /pic 或 /img 命令)
+    // BRANCH 0: 超清卡片长图模式 (directOnly === true, 对应 /pic 或 /img 命令)
     // =========================================================================
     if (job.directOnly) {
       await updateStatus(`⏳ 正在生成超清卡片长图 (${job.tweetId})...`)
@@ -385,6 +385,32 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
         fullText: true,
       })
 
+      // 1. 若配置了目标频道，同步将超清长图发布到频道
+      let isChannelSent = false
+      if (config.targetChannelIds.length > 0) {
+        for (const chId of config.targetChannelIds) {
+          try {
+            await bot.api.sendPhoto(chId, new InputFile(pngBuffer, `tweet-${job.tweetId}.png`), {
+              caption,
+              has_spoiler: shouldSpoiler,
+            })
+            isChannelSent = true
+          } catch (err: any) {
+            console.warn(`[Processor] sendPhoto to channel ${chId} failed (trying document):`, err.message)
+            try {
+              await bot.api.sendDocument(chId, new InputFile(pngBuffer, `tweet-${job.tweetId}.png`), {
+                caption,
+              })
+              isChannelSent = true
+            } catch (docErr: any) {
+              console.error(`[Processor] Failed to publish card to channel ${chId}:`, docErr.message)
+            }
+          }
+        }
+        await sendFollowUpFullTextIfNeeded(bot, tweet, effectiveSettings, isTruncated, config.targetChannelIds, [])
+      }
+
+      // 2. 私聊回传高清预览图 + 无损原图文件（供管理员/用户直接保存相册与分享）
       const targetChatId = job.telegramContext?.chatId || (config.adminUserIds.length > 0 ? config.adminUserIds[0] : null)
       if (targetChatId) {
         let photoSent = false
@@ -400,16 +426,31 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
 
         const docCaption = photoSent
           ? '📄 <b>无损原图文件</b> (100% 原始画质，未压缩)'
-          : `📄 <b>无损原图文件</b> (长文卡片高度超出照片限制，已发送无损原图)\n\n${caption}`
+          : `📄 <b>无损原图文件</b> (长文卡片高度超出照片限制，已发送无损原图)\n\n${escapeHtml(caption)}`
 
-        await bot.api.sendDocument(targetChatId, new InputFile(pngBuffer, `tweet-${job.tweetId}-original.png`), {
-          caption: docCaption,
-          parse_mode: 'HTML',
-        })
+        try {
+          await bot.api.sendDocument(targetChatId, new InputFile(pngBuffer, `tweet-${job.tweetId}-original.png`), {
+            caption: docCaption,
+            parse_mode: 'HTML',
+          })
+        } catch (docErr: any) {
+          await bot.api.sendDocument(targetChatId, new InputFile(pngBuffer, `tweet-${job.tweetId}-original.png`), {
+            caption: photoSent ? '📄 无损原图文件 (100% 原始画质，未压缩)' : caption,
+          }).catch(() => {})
+        }
       }
 
+      // 3. 更新状态消息反馈
       if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
-        await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
+        if (isChannelSent) {
+          await bot.api.editMessageText(
+            job.telegramContext.chatId,
+            job.telegramContext.statusMessageId,
+            `✅ 已发布超清长图到频道 ${channelsStr}，并已回传原图文件！`
+          ).catch(() => {})
+        } else {
+          await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
+        }
       }
       return
     }
@@ -630,6 +671,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
       pngBuffer = await renderTweetToPng(tweet, {
         theme: effectiveSettings.theme,
         scale: 2,
+        fullText: true,
       })
     }
 

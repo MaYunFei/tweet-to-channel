@@ -140,7 +140,7 @@ export interface TweetCardProps {
   fullText?: boolean
 }
 
-export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark', fullText = false }) => {
+export const TweetCard: React.FC<TweetCardProps> = ({ tweet, theme = 'dark', fullText = true }) => {
   const colors = THEMES[theme] || THEMES.dark
 
   // Guard against extreme length for Satori / Telegram image dimension limit

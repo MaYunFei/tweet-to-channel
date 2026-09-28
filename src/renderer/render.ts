@@ -125,7 +125,7 @@ export async function renderTweetToPng(
     prepareTweetImages(tweet),
   ])
 
-  const fullText = options.fullText !== undefined ? options.fullText : false
+  const fullText = options.fullText !== undefined ? options.fullText : true
 
   const cardElement = React.createElement(TweetCard, {
     tweet: preparedTweet,
