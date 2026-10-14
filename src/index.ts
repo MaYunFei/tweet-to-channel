@@ -2,6 +2,7 @@ import type http from 'node:http'
 import { createBot } from './bot/index.js'
 import { createApiServer } from './server.js'
 import { config } from './config.js'
+import { pruneCache, startCacheCleaner, stopCacheCleaner } from './cache.js'
 
 async function bootstrap() {
   console.log('----------------------------------------------------')
@@ -11,7 +12,21 @@ async function bootstrap() {
   console.log(`- Admin IDs: ${config.adminUserIds.join(', ') || '(All users allowed)'}`)
   console.log(`- Proxy: ${config.proxyUrl || '(Direct connection)'}`)
   console.log(`- HTTP API: ${config.enableApi ? `Port ${config.apiPort}` : 'Disabled'}`)
+  console.log(`- Cache Quota: ${config.cacheMaxSizeMb > 0 ? `${config.cacheMaxSizeMb} MB` : 'Unlimited'} (TTL: ${config.cacheTtlHours}h, Auto-Clean: ${config.cacheCleanIntervalMinutes}m)`)
   console.log('----------------------------------------------------')
+
+  // Run initial cache maintenance (prune expired files and orphan tmp files)
+  try {
+    const initialPrune = pruneCache()
+    if (initialPrune.totalDeletedFiles > 0) {
+      console.log(`🧹 Cache maintenance on startup: freed ${(initialPrune.totalFreedBytes / 1024 / 1024).toFixed(2)} MB (${initialPrune.totalDeletedFiles} files)`)
+    }
+  } catch (err: any) {
+    console.warn('[Cache] Startup prune warning:', err.message)
+  }
+
+  // Start periodic background cache cleaner
+  startCacheCleaner()
 
   const bot = createBot()
   let apiServer: http.Server | undefined
@@ -31,6 +46,7 @@ async function bootstrap() {
   // Graceful shutdown
   const stop = () => {
     console.log('\n🛑 Stopping bot and services...')
+    stopCacheCleaner()
     bot.stop()
     if (apiServer) {
       apiServer.close()

@@ -74,8 +74,17 @@ export const config = {
   // Local media & metadata cache directory
   cacheDir: process.env.CACHE_DIR || './data/cache',
 
-  // Cache expiration time in hours (default: 24 hours)
-  cacheTtlHours: Number(process.env.CACHE_TTL_HOURS) || 24,
+  // Cache expiration time in hours (default: 24 hours, set to 0 to disable TTL eviction)
+  cacheTtlHours: Number(process.env.CACHE_TTL_HOURS !== undefined && process.env.CACHE_TTL_HOURS !== '' ? process.env.CACHE_TTL_HOURS : 24),
+
+  // Maximum cache directory size in MB (default: 2048 MB = 2GB, set to 0 for unlimited)
+  cacheMaxSizeMb: Number(process.env.CACHE_MAX_SIZE_MB !== undefined && process.env.CACHE_MAX_SIZE_MB !== '' ? process.env.CACHE_MAX_SIZE_MB : 2048),
+
+  // Cache auto-clean background interval in minutes (default: 30 minutes, set to 0 to disable timer)
+  cacheCleanIntervalMinutes: Number(process.env.CACHE_CLEAN_INTERVAL_MINUTES !== undefined && process.env.CACHE_CLEAN_INTERVAL_MINUTES !== '' ? process.env.CACHE_CLEAN_INTERVAL_MINUTES : 30),
+
+  // Whether to immediately delete downloaded large media files after job finishes (true / false)
+  cleanMediaAfterSend: process.env.CLEAN_MEDIA_AFTER_SEND === 'true',
 
   // HTTP API Server Configuration
   apiPort: Number(process.env.API_PORT || process.env.PORT) || 3000,

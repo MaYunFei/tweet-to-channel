@@ -2,7 +2,7 @@ import { Bot, InlineKeyboard } from 'grammy'
 import { config } from '../config.js'
 import { getSettings, updateSettings } from '../settings.js'
 import { extractTweetUrls } from '../twitter/parser.js'
-import { getCacheStats, clearCache } from '../cache.js'
+import { getCacheStats, clearCache, pruneCache } from '../cache.js'
 import { taskQueue } from '../queue.js'
 import { processTweetJob } from '../processor.js'
 import type { BotSettings } from '../types.js'
@@ -74,7 +74,8 @@ export function createBot(): Bot {
       { command: 'card', description: '强制卡片渲染模式' },
       { command: 'raw', description: '原生图文/视频搬运模式' },
       { command: 'anon', description: '匿名彻底脱敏搬运' },
-      { command: 'cache', description: '查看本地媒体缓存' },
+      { command: 'cache', description: '查看本地媒体缓存与配额' },
+      { command: 'prunecache', description: '立即执行缓存轮转与配额淘汰' },
       { command: 'help', description: '查看详细使用帮助' },
     ])
     .catch(() => {})
@@ -98,7 +99,8 @@ export function createBot(): Bot {
       '• <b>/notrans &lt;链接&gt;:</b> 快捷纯原文模式（单次强制关闭翻译）。',
       '• <b>/spoiler &lt;链接&gt;:</b> 快捷敏感遮罩模式（单次强制开启防剧透打码）。',
       '• <b>/nospoiler &lt;链接&gt;:</b> 快捷无遮罩模式（单次强制关闭打码，直接展示）。',
-      '• <b>/cache:</b> 查看当前本地媒体与数据缓存占用情况。',
+      '• <b>/cache:</b> 查看当前本地媒体与数据缓存占用与配额。',
+      '• <b>/prunecache:</b> 立即执行缓存轮转淘汰（清理过期与超配额文件）。',
       '• <b>/clearcache:</b> 立即清空所有本地推特媒体与数据缓存。',
       '• <b>/nocache &lt;链接&gt;:</b> 单次强制绕过本地缓存，重新从推特下载。',
       '• <b>/settings:</b> 打开交互式设置面板，一键切换全局模式与开关。',
@@ -128,13 +130,42 @@ export function createBot(): Bot {
   bot.command('cache', async ctx => {
     const stats = getCacheStats()
     const mb = (stats.totalSizeBytes / 1024 / 1024).toFixed(2)
+    const quotaStr = config.cacheMaxSizeMb > 0 ? `${config.cacheMaxSizeMb} MB` : '无限制'
+    const intervalStr = config.cacheCleanIntervalMinutes > 0 ? `${config.cacheCleanIntervalMinutes} 分钟` : '已禁用'
+    const ephemeralStr = config.cleanMediaAfterSend ? '开启 (即推即焚)' : '关闭 (LRU/TTL 轮转)'
+
     await ctx.reply(
       `📦 <b>本地媒体与数据缓存状态</b>\n\n` +
       `• <b>缓存文件数:</b> <code>${stats.fileCount}</code> 个\n` +
       `• <b>占用磁盘空间:</b> <code>${mb} MB</code>\n` +
-      `• <b>缓存有效期:</b> <code>${config.cacheTtlHours} 小时</code>\n\n` +
-      `<i>💡 提示：同一推文在有效期内重复发送时，将 100% 毫秒级复用已下载的原图与视频，方便测试不同的样式参数！\n` +
-      `发送 /clearcache 可立即清空全部缓存。</i>`,
+      `• <b>容量配额上限:</b> <code>${quotaStr}</code>\n` +
+      `• <b>缓存有效期:</b> <code>${config.cacheTtlHours > 0 ? `${config.cacheTtlHours} 小时` : '永久'}</code>\n` +
+      `• <b>后台自动轮转:</b> <code>${intervalStr}</code>\n` +
+      `• <b>临时媒体即推即清:</b> <code>${ephemeralStr}</code>\n\n` +
+      `<i>💡 提示：系统已开启 TTL 与 LRU 双重容量保护，防止磁盘被媒体撑爆。\n` +
+      `• 发送 /prunecache 立即执行 LRU/TTL 淘汰裁剪\n` +
+      `• 发送 /clearcache 立即清空全部缓存</i>`,
+      { parse_mode: 'HTML' }
+    )
+  })
+
+  // Prune cache command
+  bot.command('prunecache', async ctx => {
+    const userId = ctx.from?.id
+    if (config.adminUserIds.length > 0 && (!userId || !config.adminUserIds.includes(userId))) {
+      await ctx.reply('⛔ 您没有操作权限。')
+      return
+    }
+
+    const res = pruneCache({ gracePeriodMs: 0 })
+    const freedMb = (res.totalFreedBytes / 1024 / 1024).toFixed(2)
+    const remainMb = (res.remainingBytes / 1024 / 1024).toFixed(2)
+
+    await ctx.reply(
+      `✂️ <b>缓存轮转清理完成！</b>\n\n` +
+      `• <b>清理文件数:</b> <code>${res.totalDeletedFiles}</code> 个 (TTL过期: ${res.ttlDeletedFiles}, LRU配额: ${res.lruDeletedFiles}, 孤儿临时文件: ${res.orphanTmpDeletedFiles})\n` +
+      `• <b>释放空间:</b> <code>${freedMb} MB</code>\n` +
+      `• <b>当前剩余:</b> <code>${remainMb} MB</code> (<code>${res.remainingFiles}</code> 个文件)`,
       { parse_mode: 'HTML' }
     )
   })

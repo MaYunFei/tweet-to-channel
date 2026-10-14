@@ -6,7 +6,7 @@ import { toOriginalTwitterImageUrl } from './twitter/parser.js'
 import { getTweetData } from './twitter/fetcher.js'
 import { translateToChinese } from './translate/google.js'
 import { renderTweetToPng } from './renderer/render.js'
-import { getCachedBuffer, setCachedBuffer } from './cache.js'
+import { getCachedBuffer, setCachedBuffer, deleteCachedBuffer } from './cache.js'
 import type { TweetData, BotSettings, TweetMedia } from './types.js'
 
 export let proxyDispatcher: ProxyAgent | undefined
@@ -299,6 +299,16 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
   const maxVideoBytes = config.telegramApiRoot ? 2000 * 1024 * 1024 : 50 * 1024 * 1024
   const channelsStr = config.targetChannelIds.join(', ')
 
+  const downloadedMediaUrls = new Set<string>()
+  const cleanupEphemeralMedia = () => {
+    if (config.cleanMediaAfterSend && downloadedMediaUrls.size > 0) {
+      for (const url of downloadedMediaUrls) {
+        deleteCachedBuffer(url)
+      }
+      console.log(`[Processor] [${job.tweetId}] Ephemeral clean: deleted ${downloadedMediaUrls.size} media file(s)`)
+    }
+  }
+
   const updateStatus = async (text: string) => {
     if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
       await bot.api.editMessageText(job.telegramContext.chatId, job.telegramContext.statusMessageId, text).catch(() => {})
@@ -472,6 +482,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
         )
 
         if (downloadRes) {
+          downloadedMediaUrls.add(downloadRes.url)
           let channelSent = false
           for (const chId of config.targetChannelIds) {
             try {
@@ -516,6 +527,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
+          cleanupEphemeralMedia()
           return
         }
       }
@@ -523,6 +535,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
       // 2. Tweet has photo(s)
       const photos = tweet.media.filter(m => m.type === 'photo')
       if (photos.length > 0) {
+        photos.forEach(p => downloadedMediaUrls.add(toOriginalTwitterImageUrl(p.url)))
         await updateStatus(`⏳ 正在下载 ${photos.length} 张高清原图 (${job.tweetId})...`)
         const photoBuffers = (await Promise.all(
           photos.map(p => downloadBuffer(toOriginalTwitterImageUrl(p.url), 15_000, 20 * 1024 * 1024, job.bypassCache))
@@ -565,6 +578,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
+          cleanupEphemeralMedia()
           return
         } else if (photoBuffers.length > 1) {
           let channelSent = false
@@ -609,6 +623,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
           if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
             await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
           }
+          cleanupEphemeralMedia()
           return
         }
       }
@@ -663,6 +678,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
         (msg) => updateStatus(msg),
         job.bypassCache
       )
+      if (downloadedVideo) {
+        downloadedMediaUrls.add(downloadedVideo.url)
+      }
     }
 
     let pngBuffer: Buffer | null = null
@@ -679,6 +697,7 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
     const photos = tweet.media.filter(m => m.type === 'photo')
     let photoBuffers: Buffer[] = []
     if (photos.length > 0 && effectiveSettings.attachPhotos) {
+      photos.forEach(p => downloadedMediaUrls.add(toOriginalTwitterImageUrl(p.url)))
       await updateStatus(`⏳ 正在下载 ${photos.length} 张高清原图 (${job.tweetId})...`)
       photoBuffers = (await Promise.all(
         photos.map(p => downloadBuffer(toOriginalTwitterImageUrl(p.url), 20_000, 20 * 1024 * 1024, job.bypassCache))
@@ -785,7 +804,9 @@ export async function processTweetJob(bot: Bot, job: TweetJob): Promise<void> {
     if (job.source === 'telegram' && job.telegramContext?.statusMessageId) {
       await bot.api.deleteMessage(job.telegramContext.chatId, job.telegramContext.statusMessageId).catch(() => {})
     }
+    cleanupEphemeralMedia()
   } catch (err: any) {
+    cleanupEphemeralMedia()
     await notifyError(err.message || '未知错误')
   }
 }

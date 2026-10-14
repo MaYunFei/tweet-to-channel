@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "convert": "tsx src/cli.ts"
+    "convert": "tsx src/cli.ts",
+    "test": "tsx --test test/**/*.test.ts"
   },
   "keywords": [],
   "author": "",
