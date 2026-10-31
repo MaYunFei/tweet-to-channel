@@ -32,6 +32,7 @@ RUN pnpm install --prod --frozen-lockfile
 COPY --from=builder /app/dist ./dist
 
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Run bot
 CMD ["node", "dist/index.js"]
